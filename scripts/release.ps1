@@ -91,7 +91,12 @@ try {
     if ($resp.StatusCode -ne 200) { Fail "Zbudowany .exe nie odpowiada na /api/state." }
     Write-Host "Zbudowany .exe odpowiada poprawnie." -ForegroundColor Green
 } finally {
-    if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+    # Jednoplikowy .exe uruchamia proces potomny — zabicie samego rodzica
+    # zostawia go przy życiu, a on trzyma plik i blokuje kolejny build.
+    if ($proc -and -not $proc.HasExited) {
+        taskkill /PID $proc.Id /T /F 2>&1 | Out-Null
+    }
+    Start-Sleep -Seconds 1
 }
 
 # --- 7. Publikacja -----------------------------------------------------------

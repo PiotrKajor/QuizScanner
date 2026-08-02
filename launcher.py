@@ -15,6 +15,7 @@ from tkinter import messagebox
 
 from quizscanner import server as app  # build_server / stop_server / lan_ip
 from quizscanner import VERSION
+from quizscanner.paths import ICON_ICO
 
 
 class Launcher:
@@ -23,6 +24,10 @@ class Launcher:
         self.httpd = None
         self.thread = None
         root.title("QuizScanner")
+        try:                                   # logo w pasku okna i na pasku zadań
+            root.iconbitmap(ICON_ICO)
+        except Exception:                      # brak pliku lub system bez .ico
+            pass
         root.geometry("460x330")
         root.resizable(False, False)
         root.configure(bg="#14161f")

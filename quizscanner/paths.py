@@ -21,6 +21,10 @@ else:
     DATA_DIR = os.path.join(os.path.dirname(RES_DIR), "data")     # <repo>/data
 
 WEB_DIR = os.path.join(RES_DIR, "web")
+# Ikona programu (logo) — ta sama, którą dostaje .exe i okno launchera.
+# Ze źródeł leży w <repo>/assets, w .exe w <_MEIPASS>\assets.
+_ASSET_ROOT = RES_DIR if getattr(sys, "frozen", False) else os.path.dirname(RES_DIR)
+ICON_ICO = os.path.join(_ASSET_ROOT, "assets", "logo.ico")
 QUIZ_DIR = os.path.join(DATA_DIR, "quizzes")
 MEDIA_DIR = os.path.join(DATA_DIR, "media")
 REPORT_DIR = os.path.join(DATA_DIR, "raporty")
