@@ -58,6 +58,26 @@ def check_tex():
         assert got == expected, f"{src!r}: {got!r} != {expected!r}"
 
 
+def check_nazwy_plikow():
+    """Tytuły quizów piszemy po polsku, a nazwy plików muszą być ASCII —
+    polskie litery transliterujemy, nie wycinamy. Nazwa raportu dodatkowo
+    trafia do nagłówka Content-Disposition, który http.server koduje
+    w latin-1, więc „ł" w nazwie wywracało pobieranie."""
+    for tytul, oczekiwane in {
+        "próba": "proba",                       # nie „prba"
+        "Ułamki": "Ulamki",
+        "Zażółć gęślą jaźń": "Zazolc gesla jazn",
+        "../../etc/passwd": "etcpasswd",        # dalej bez wyjścia z katalogu
+        "": "quiz",
+    }.items():
+        got = server.safe_name(tytul)
+        assert got == oczekiwane, f"{tytul!r}: {got!r} != {oczekiwane!r}"
+
+    stem = report.file_stem({"quiz_title": "Ułamki próbne"})
+    assert stem.startswith("raport_Ulamki_probne_"), stem
+    f'attachment; filename="{stem}.pdf"'.encode("latin-1")   # nagłówek HTTP
+
+
 def check_i18n():
     """Każdy klucz użyty w HTML/JS musi istnieć w obu językach — inaczej
     w interfejsie pojawia się goła nazwa klucza zamiast napisu."""
@@ -96,6 +116,7 @@ def check_i18n():
 
 def main():
     check_tex()
+    check_nazwy_plikow()
     check_i18n()
     httpd = server.build_server(port=PORT, no_camera=True)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()

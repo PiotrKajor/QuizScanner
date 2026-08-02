@@ -20,6 +20,7 @@ import os
 import re
 
 from . import VERSION
+from .paths import ascii_pl
 
 LETTERS = ["A", "B", "C", "D"]
 FORMATS = ["pdf", "csv", "xlsx", "html", "json", "txt"]
@@ -209,9 +210,13 @@ def build(session):
 
 
 def file_stem(data):
-    """Bezpieczna nazwa pliku raportu: raport_<quiz>_<data>."""
+    """Bezpieczna nazwa pliku raportu: raport_<quiz>_<data>.
+
+    Czysto ASCII: nazwa trafia do nagłówka Content-Disposition, a ten
+    http.server koduje w latin-1 — polska litera wywracała tam pobieranie.
+    """
     base = data.get("quiz_file") or data.get("quiz_title") or "quiz"
-    base = re.sub(r"[^\w\- ]", "", base, flags=re.UNICODE).strip().replace(" ", "_")
+    base = re.sub(r"[^A-Za-z0-9_\- ]", "", ascii_pl(base)).strip().replace(" ", "_")
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M")
     return f"raport_{base or 'quiz'}_{stamp}"
 

@@ -7,11 +7,15 @@ Działa tak samo z kodu źródłowego, jak i w spakowanym .exe (PyInstaller):
 
 Ze źródeł DATA_DIR = <repo>/data, w .exe = <folder z exe>/data — dzięki temu
 wszystko, co tworzy nauczyciel, leży w jednym katalogu obok programu.
+
+Tu mieszka też ascii_pl() — wspólna zamiana polskich znaków na ASCII przy
+budowaniu nazw plików.
 """
 
 import os
 import shutil
 import sys
+import unicodedata
 
 if getattr(sys, "frozen", False):
     RES_DIR = sys._MEIPASS                                        # zasoby exe
@@ -31,6 +35,25 @@ REPORT_DIR = os.path.join(DATA_DIR, "raporty")
 ROSTER_JSON = os.path.join(DATA_DIR, "roster.json")
 STUDENTS_CSV = os.path.join(DATA_DIR, "students.csv")
 SETTINGS_JSON = os.path.join(DATA_DIR, "settings.json")
+
+# Litery, których rozkład Unicode nie rozbija na „litera + znak diakrytyczny".
+_PODMIANY = {"ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ø": "o", "Ø": "O",
+             "ß": "ss", "æ": "ae", "Æ": "AE"}
+
+
+def ascii_pl(text):
+    """Zamienia polskie (i inne) znaki diakrytyczne na odpowiedniki ASCII:
+    „Ułamki próbne" -> „Ulamki probne".
+
+    Nazwy plików budujemy z tytułów pisanych po polsku, a te muszą przeżyć
+    kopiowanie między systemami i trafić do nagłówka HTTP Content-Disposition,
+    który http.server koduje w latin-1 — „ł" wywracało tam pobieranie raportu.
+    Samo wycięcie znaków spoza ASCII okaleczałoby słowa („próba" -> „prba"),
+    dlatego najpierw transliterujemy.
+    """
+    text = "".join(_PODMIANY.get(z, z) for z in (text or ""))
+    rozlozone = unicodedata.normalize("NFKD", text)
+    return "".join(z for z in rozlozone if not unicodedata.combining(z))
 
 
 def seed_data():

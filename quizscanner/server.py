@@ -32,7 +32,7 @@ from . import VERSION
 from . import report as report_mod
 from . import updater
 from .paths import (DATA_DIR, MEDIA_DIR, QUIZ_DIR, REPORT_DIR, ROSTER_JSON,
-                    SETTINGS_JSON, STUDENTS_CSV, WEB_DIR, seed_data)
+                    SETTINGS_JSON, STUDENTS_CSV, WEB_DIR, ascii_pl, seed_data)
 from .session import QuizSession, PHASE_IDLE
 from .camera import CameraScanner
 
@@ -101,8 +101,12 @@ MEDIA_MAX_MB = 40
 
 # --------------------------- pomocnicze ---------------------------
 def safe_name(name):
-    """Sanityzuje nazwę pliku quizu (bez ścieżek)."""
-    return re.sub(r"[^A-Za-z0-9_\- ]", "", (name or "")).strip() or "quiz"
+    """Sanityzuje nazwę pliku quizu (bez ścieżek).
+
+    Polskie znaki najpierw transliterujemy, więc „próba" daje plik „proba",
+    a nie okaleczone „prba".
+    """
+    return re.sub(r"[^A-Za-z0-9_\- ]", "", ascii_pl(name)).strip() or "quiz"
 
 
 def list_quizzes():
