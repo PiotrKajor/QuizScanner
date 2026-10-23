@@ -15,6 +15,7 @@
     <span class="brand"><img class="brand-logo" src="/static/logo.svg" alt="">QuizScanner</span>
     <select id="quizSel"></select>
     <button class="btn-primary" id="loadBtn" data-i18n="t_load"></button>
+    <select id="classSel" data-i18n-title="cl_label"></select>
     <button class="btn-ghost" id="editorBtn" data-i18n="t_editor"></button>
     <button class="btn-ghost" id="boardBtn" data-i18n="t_board"></button>
     <div class="spacer"></div>
@@ -24,6 +25,7 @@
       <option value="en">🇬🇧 English</option>
     </select>
     <span class="lan-url" id="lanUrl">—</span>
+    <button class="btn-ghost" id="pairBtn" data-i18n="pr_button"></button>
     <button class="btn-primary" id="reportBtn" data-i18n="t_report"></button>
   </div>
 
@@ -33,6 +35,13 @@
     <button class="btn-primary" id="updateBtn" data-i18n="u_update_now"></button>
     <button class="btn-ghost" id="updatePage" data-i18n="u_open_page"></button>
     <button class="btn-ghost" id="updateClose" data-i18n="close"></button>
+  </div>
+
+  <!-- Wznowiona przerwana gra -->
+  <div class="update-bar hidden" id="restoreBar">
+    <span id="restoreText"></span>
+    <button class="btn-ghost" id="restoreNew" data-i18n="rs_new_game"></button>
+    <button class="btn-ghost" id="restoreOk" data-i18n="close"></button>
   </div>
 
   <div class="layout">
@@ -85,6 +94,16 @@
 
         <div class="switch-row">
           <label class="switch">
+            <input type="checkbox" id="speakToggle"><span class="slider"></span>
+          </label>
+          <div>
+            <div class="lbl" data-i18n="dr_speak_label"></div>
+            <div class="sub" data-i18n="dr_speak_sub"></div>
+          </div>
+        </div>
+
+        <div class="switch-row">
+          <label class="switch">
             <input type="checkbox" id="autoReportToggle"><span class="slider"></span>
           </label>
           <div>
@@ -127,7 +146,9 @@
           <button class="btn-ghost" id="prevBtn" data-i18n="t_prev"></button>
           <button class="btn-ghost" id="nextBtn" data-i18n="t_next"></button>
           <button class="btn-danger" id="resetBtn" data-i18n="t_reset"></button>
+          <button class="btn-warn" id="drawBtn" data-i18n="dr_button"></button>
         </div>
+        <div class="draw-out muted" id="drawOut"></div>
 
         <div class="switch-row">
           <label class="switch">
@@ -160,6 +181,7 @@
           </tr></thead>
           <tbody id="studentsBody"></tbody>
         </table>
+        <div class="missing muted hidden" id="missing"></div>
       </div>
 
       <div class="card">
@@ -175,6 +197,26 @@
       <h2 id="phTitle"></h2>
       <div id="phBody"></div>
       <button class="btn-primary" id="phClose" data-i18n="close"></button>
+    </div>
+  </div>
+
+  <!-- Pilot w telefonie: parowanie kodem QR -->
+  <div class="modal hidden" id="pairModal">
+    <div class="modal-box pair-box">
+      <h2 data-i18n="pr_title"></h2>
+      <p data-i18n="pr_intro"></p>
+      <img class="pair-qr" id="pairQr" alt="">
+      <div class="pair-ip hidden" id="pairIpRow">
+        <label class="field" data-i18n="pr_network"></label>
+        <select id="pairIp"></select>
+      </div>
+      <p class="muted" data-i18n="pr_link"></p>
+      <code class="pair-url" id="pairUrl"></code>
+      <p class="muted" data-i18n="pr_security"></p>
+      <div class="pair-actions">
+        <button class="btn-danger" id="pairReset" data-i18n="pr_reset"></button>
+        <button class="btn-primary" id="pairClose" data-i18n="close"></button>
+      </div>
     </div>
   </div>
 

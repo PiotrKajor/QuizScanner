@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img alt="wersja" src="https://img.shields.io/badge/wersja-3.1.0-e2603f">
+  <img alt="wersja" src="https://img.shields.io/badge/wersja-3.2.0-e2603f">
   <img alt="języki" src="https://img.shields.io/badge/j%C4%99zyk-PL%20%7C%20EN-2f9fb3">
   <img alt="motywy" src="https://img.shields.io/badge/motywy-7%20(ciemny%20domy%C5%9Blnie)-8a7bef">
   <img alt="platforma" src="https://img.shields.io/badge/platforma-Windows%20%7C%20Linux%20%7C%20macOS-2f9fb3">
@@ -49,9 +49,15 @@ wyniki na żywo, klasa widzi tablicę na rzutniku, a po lekcji masz gotowy rapor
 | | |
 |---|---|
 | 📷 **Odczyt z kamery** | jeden kadr wykrywa całą klasę naraz (markery ArUco) |
+| 📱 **Pilot w telefonie** | parowanie kodem QR, sterowanie i lista „kto jeszcze nie odpowiedział" — bez instalowania aplikacji |
+| 🔒 **Sterowanie tylko dla nauczyciela** | uczniowie w tej samej sieci widzą tablicę, ale nie przełączą pytania ani nie podejrzą odpowiedzi |
+| 👥 **Klasy** | osobna lista dla każdej klasy, import z CSV/Excela (eksport z dziennika) |
+| 📄 **Import z Worda** | test napisany w .docx lub .txt staje się quizem — szablon w edytorze |
+| 🎲 **Losowanie ucznia** | animacja na tablicy, bez powtórzeń, opcjonalnie czytane na głos (offline) |
+| 💾 **Wznowienie gry** | po zamknięciu programu w trakcie lekcji wracasz do tego samego pytania |
 | 📱 **Telefon zamiast kamery** | darmowa aplikacja streamująca: IP Webcam, DroidCam, Iriun |
 | ▶️ **Tryb automatyczny** | quiz sam odsłania wyniki i przechodzi dalej, bez klikania |
-| 🖥️ **Tablica na rzutnik** | pytanie, timer, rozkład odpowiedzi, podium |
+| 🖥️ **Tablica na rzutnik** | pytanie, timer, rozkład odpowiedzi, podium, powiększanie tekstu 80–175% |
 | 🎨 **7 motywów** | ciemny (domyślny), jasny, ocean, las, zachód słońca, cukierkowy, wysoki kontrast |
 | 🔊 **Dźwięki tablicy** | start, odliczanie, koniec czasu, wynik, fanfara — syntezowane, bez plików |
 | 🧮 **Przybornik matematyczny** | symbole Unicode (√ π ≤ ∑ ∫) i pełny **LaTeX renderowany przez KaTeX** |
@@ -95,17 +101,64 @@ python -m quizscanner --camera 0 --port 8000    # albo od razu serwer
 4. **Odbierz raport** — przycisk **„📊 Raport"**; komplet zapisuje się też sam
    po ostatnim pytaniu.
 
-## 🖥️ Trzy widoki
+## 🖥️ Cztery widoki
 
 | Widok | Adres | Do czego |
 |---|---|---|
 | Panel nauczyciela | `http://localhost:8000/teacher` | podgląd kamery, sterowanie, wyniki na żywo, raport, ustawienia |
 | Tablica (rzutnik) | `http://localhost:8000/board` | duży ekran dla uczniów — pytanie, timer, rozkład, podium |
-| Edytor | `http://localhost:8000/editor` | quizy, przybornik matematyczny, lista uczniów |
+| Edytor | `http://localhost:8000/editor` | quizy, import z Worda, przybornik matematyczny, klasy i uczniowie |
+| Pilot | `http://<IP-komputera>:8000/remote` | telefon nauczyciela po zeskanowaniu kodu QR z panelu |
 
 Tablicę można otworzyć **z innego urządzenia w tej samej sieci** (drugi komputer
 przy rzutniku, Smart TV) pod adresem `http://<IP-komputera>:8000/board` — dokładny
-adres pokazuje panel nauczyciela.
+adres pokazuje panel nauczyciela. Po poruszeniu myszą pojawia się pasek
+z powiększaniem tekstu (A−/A+, klawisze +/−) i pełnym ekranem (F); na komputerze
+nauczyciela i sparowanych urządzeniach także przełączanie pytań i losowanie.
+
+## 📱 Pilot w telefonie i bezpieczeństwo w sieci
+
+1. W panelu kliknij **📱 Pilot w telefonie**.
+2. Zeskanuj kod QR aparatem telefonu podłączonego do tej samej sieci Wi-Fi.
+3. Telefon otwiera pilota: duży przycisk **Start → Pokaż wynik → Następne**,
+   czas, liczba odpowiedzi, lista uczniów bez odpowiedzi, losowanie, wybór
+   quizu i klasy. Parowanie zostaje zapamiętane.
+
+Bez parowania inne urządzenia w sieci (np. telefony uczniów) widzą **tylko
+tablicę** — nie przełączą pytania, nie zobaczą poprawnej odpowiedzi przed
+odsłonięciem, raportów ani obrazu z kamery. **Odłącz wszystkie urządzenia**
+w tym samym okienku unieważnia stare kody.
+
+## 📄 Import pytań z Worda
+
+W edytorze: **📄 Wczytaj z Worda / tekstu** (.docx albo .txt). Format:
+
+```
+Tytuł: Powtórka z ułamków
+
+1. Ile to jest $\frac{1}{2} + \frac{1}{4}$?
+A. $\frac{3}{4}$
+B. $\frac{2}{6}$
+C. 1
+D. $\frac{1}{8}$
+Odpowiedź: A
+Czas: 30
+```
+
+Poprawną odpowiedź wskazuje linia „Odpowiedź: X", gwiazdka („*A.") albo
+pogrubienie całej odpowiedzi w Wordzie. „Czas:" i „Punkty:" są opcjonalne,
+automatyczna numeracja Worda też działa. Gotowy szablon: link
+**Pobierz szablon .docx** w edytorze. Zaimportowany quiz trafia do edytora do
+przejrzenia — zapisujesz go sam(a).
+
+## 👥 Klasy i lista uczniów
+
+Edytor → **Uczniowie**: każda klasa ma własną listę i własne karty do druku
+(numery kart są w obrębie klasy, więc jeden komplet kart służy wszystkim
+klasom). **📥 Wczytaj z pliku** przyjmuje eksport z dziennika lub arkusz
+(CSV albo .xlsx): „Nazwisko;Imię", „1;Anna Nowak" albo jedno nazwisko
+w linii — brakujące numery kart nadają się same. Klasę, z którą toczy się
+gra, wybierasz w panelu lub w pilocie.
 
 ## 🎛️ Sterowanie quizem
 
@@ -113,6 +166,10 @@ adres pokazuje panel nauczyciela.
 - **✓ Pokaż wynik** — zamyka pytanie, pokazuje poprawną odpowiedź, nalicza punkty.
 - **◀ / ▶** — poprzednie / następne pytanie (po ostatnim pojawia się podium).
 - **⟲ Reset punktów** — nowa rozgrywka od zera.
+- **🎲 Losuj ucznia** — animacja na tablicy, bez powtórzeń do wyczerpania listy;
+  opcjonalnie imię czytane na głos głosem systemu (offline).
+- **Wznowienie gry** — po zamknięciu programu w trakcie quizu (do 12 godzin)
+  gra wraca do tego samego pytania z tymi samymi punktami.
 - **📊 Raport** — podsumowanie i pobranie w wybranym formacie.
 - **Punkty za szybkość** — wył. (domyślnie): każda poprawna odpowiedź warta tyle
   samo; wł.: szybsza odpowiedź daje więcej.
@@ -201,9 +258,11 @@ QuizScanner/
 │   ├── aruco.py           słownik ArUco i mapowanie krawędź → odpowiedź
 │   ├── cards.py           generator kart PNG/PDF do druku
 │   ├── report.py          raport: dane + eksport (pdf/xlsx/csv/html/json/txt)
+│   ├── quiz_import.py     import pytań z Worda (.docx) i tekstu + szablon
+│   ├── roster_import.py   import listy uczniów z CSV/XLSX, eksport CSV
 │   ├── updater.py         sprawdzanie i pobieranie nowych wydań
 │   ├── paths.py           ścieżki zasobów i danych (źródła vs .exe)
-│   └── web/               interfejs: panel, tablica, edytor, motywy, dźwięki
+│   └── web/               interfejs: panel, tablica, edytor, pilot, motywy, dźwięki
 ├── data/                  dane użytkownika: quizy, uczniowie, media, raporty
 ├── docs/                  INSTALACJA.md, FAQ.md
 ├── scripts/               install.sh, install-windows.bat, build_exe.ps1
@@ -284,6 +343,15 @@ ok, frame = cap.read()
 detections = engine.process(frame)   # [(id, 'A'/'B'/'C'/'D', rogi), ...]
 answers = engine.snapshot()          # {id_ucznia: 'A'/'B'/'C'/'D'}
 ```
+
+---
+
+## 🙏 Podziękowania
+
+Wersja 3.2 powstała z inspiracji forkiem
+[suoyikehahaha/QuizScanner](https://github.com/suoyikehahaha/QuizScanner)
+— chińską edycją „辨惑策” (公众号 „蓑衣微言”), która dorobiła m.in. pilota
+na telefonie, klasy, import z Worda i losowanie ucznia. Dziękujemy za pomysły!
 
 ---
 

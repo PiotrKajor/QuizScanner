@@ -140,10 +140,145 @@ function soundGate() {
 document.addEventListener("pointerdown", () => { Sound.unlock(); soundGate(); });
 document.addEventListener("keydown", () => { Sound.unlock(); soundGate(); });
 
+// ---- losowanie ucznia ----
+// Serwer zwraca wylosowanego ucznia przez kilka sekund; tablica pokazuje
+// krótką animację przewijania imion i (opcjonalnie) czyta wynik na głos.
+let drawSeq;               // undefined = pierwszy odczyt (bez animacji po odświeżeniu)
+let drawHide = null;
+let serverSettings = {};
+
+function speak(name) {
+  if (!serverSettings.speak_draw || !window.speechSynthesis) return;
+  const lang = document.documentElement.lang;
+  // Tylko głosy zainstalowane w systemie (localService) — aplikacja działa
+  // offline i nie wysyła imion uczniów do żadnej usługi w sieci.
+  const voice = speechSynthesis.getVoices().find(v => v.localService && v.lang.startsWith(lang));
+  if (!voice) return;
+  const u = new SpeechSynthesisUtterance(name);
+  u.voice = voice; u.lang = voice.lang; u.rate = .95;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+function showDraw(d, animate) {
+  const box = document.getElementById("drawOverlay");
+  const el = document.getElementById("drawName");
+  clearTimeout(drawHide);
+  box.classList.remove("hidden");
+  el.classList.remove("final");
+  const finish = () => {
+    el.textContent = d.name;
+    void el.offsetWidth;            // restart animacji „pop"
+    el.classList.add("final");
+    if (Sound.enabled) Sound.play("drawn");
+    speak(d.name);
+    drawHide = setTimeout(() => box.classList.add("hidden"), 8000);
+  };
+  const pool = (d.pool || []).filter(n => n !== d.name);
+  if (!animate || pool.length < 2) return finish();
+  // Coraz wolniejsze przewijanie imion, jak koło losujące.
+  let delay = 50, spent = 0;
+  const step = () => {
+    el.textContent = pool[Math.floor(Math.random() * pool.length)];
+    if (Sound.enabled) Sound.play("roll");
+    spent += delay;
+    delay *= 1.12;
+    if (spent < 2200) setTimeout(step, delay); else finish();
+  };
+  step();
+}
+document.getElementById("drawOverlay").onclick = () => {
+  clearTimeout(drawHide);
+  document.getElementById("drawOverlay").classList.add("hidden");
+};
+
+function checkDraw(st) {
+  const d = st.draw;
+  if (d && d.seq !== drawSeq && drawSeq !== undefined) showDraw(d, true);
+  drawSeq = d ? d.seq : (drawSeq === undefined ? null : drawSeq);
+}
+
+// ---- pasek tablicy ----
+const ZOOM_MIN = 0.8, ZOOM_MAX = 1.75, ZOOM_STEP = 0.15;
+let zoom = 1;
+try { zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +localStorage.getItem("qs_zoom") || 1)); } catch (e) { }
+
+function applyZoom() {
+  document.documentElement.style.setProperty("--zoom", zoom);
+  document.getElementById("zVal").textContent = Math.round(zoom * 100) + "%";
+  try { localStorage.setItem("qs_zoom", zoom); } catch (e) { }
+}
+function changeZoom(dir) {
+  zoom = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom + dir * ZOOM_STEP)) * 100) / 100;
+  applyZoom();
+}
+const bctl = document.getElementById("bctl");
+let bctlHide = null;
+function showBar() {
+  bctl.classList.add("show");
+  clearTimeout(bctlHide);
+  bctlHide = setTimeout(() => { if (!bctl.matches(":hover")) bctl.classList.remove("show"); }, 3000);
+}
+document.addEventListener("pointermove", showBar);
+document.addEventListener("pointerdown", showBar);
+bctl.addEventListener("mouseleave", showBar);
+document.getElementById("zIn").onclick = () => changeZoom(1);
+document.getElementById("zOut").onclick = () => changeZoom(-1);
+document.getElementById("bFull").onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => { });
+};
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "SELECT") return;
+  if (e.key === "+" || e.key === "=") changeZoom(1);
+  else if (e.key === "-") changeZoom(-1);
+  else if (e.key === "f" || e.key === "F") document.getElementById("bFull").onclick();
+});
+
+// Sterowanie z tablicy: tylko komputer nauczyciela i sparowane urządzenia.
+let canControl = false;
+let boardPhase = "idle";
+const ctl = (action, extra) => fetch("/api/control", {
+  method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(Object.assign({ action }, extra || {})),
+}).then(tick);
+const MAIN_ACTION = { idle: ["start", "t_start"], question: ["reveal", "t_reveal"],
+  reveal: ["next", "t_next"], podium: ["reset", "t_reset"] };
+document.getElementById("bPrev").onclick = () => ctl("prev");
+document.getElementById("bNext").onclick = () => ctl("next");
+document.getElementById("bDraw").onclick = () => ctl("draw");
+document.getElementById("bMain").onclick = () => {
+  const [action] = MAIN_ACTION[boardPhase] || MAIN_ACTION.idle;
+  if (action === "reset" && !confirm(t("t_confirm_reset"))) return;
+  ctl(action);
+};
+document.getElementById("bGoto").onchange = e => ctl("goto", { index: +e.target.value });
+
+let outlineKey = "";
+async function refreshControls(st) {
+  if (!canControl) return;
+  boardPhase = st.phase;
+  const [, label] = MAIN_ACTION[st.phase] || MAIN_ACTION.idle;
+  document.getElementById("bMain").textContent = t(label);
+  const sel = document.getElementById("bGoto");
+  const key = st.quiz_title + st.total + document.documentElement.lang;
+  if (key !== outlineKey) {
+    outlineKey = key;
+    try {
+      const full = await (await fetch("/api/state?full=1")).json();
+      sel.innerHTML = (full.outline || []).map((txt, i) =>
+        `<option value="${i}">${i + 1}. ${esc(txt.replace(/\$/g, ""))}</option>`).join("");
+    } catch (e) { }
+  }
+  if (document.activeElement !== sel) sel.value = st.index;
+}
+
 async function tick() {
   try {
     const st = await (await fetch("/api/state")).json();
     cues(st);
+    checkDraw(st);
+    refreshControls(st);
     const key = document.documentElement.lang + st.phase + st.index + st.answered
       + JSON.stringify(st.distribution)
       + (st.phase === "podium" ? JSON.stringify(st.leaderboard) : "");
@@ -165,13 +300,19 @@ async function tick() {
 // żeby ustawienia działały też na drugim komputerze przy rzutniku.
 async function pollSettings() {
   try {
-    applyServerSettings(await (await fetch("/api/settings")).json());
+    serverSettings = applyServerSettings(await (await fetch("/api/settings")).json());
     soundGate();
   } catch (e) { }
 }
 
 (async function init() {
-  await initLang();
+  serverSettings = await initLang();
+  applyZoom();
+  try {
+    canControl = (await (await fetch("/api/whoami")).json()).authorized;
+  } catch (e) { }
+  bctl.classList.toggle("ctl", canControl);
+  showBar();
   soundGate();
   tick();
   setInterval(tick, 350);

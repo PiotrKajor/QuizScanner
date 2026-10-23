@@ -14,6 +14,27 @@
   <div class="scan-frame"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
   <div class="sound-gate hidden" id="soundGate"></div>
   <div id="root"></div>
+
+  <!-- Losowanie ucznia -->
+  <div class="draw-overlay hidden" id="drawOverlay">
+    <div class="kicker" data-i18n="dr_kicker"></div>
+    <div class="draw-name" id="drawName"></div>
+  </div>
+
+  <!-- Pasek tablicy: wielkość tekstu dla każdego; sterowanie po sparowaniu -->
+  <div class="bctl" id="bctl">
+    <button id="zOut" data-i18n-title="bc_smaller">A−</button>
+    <span class="zval" id="zVal">100%</span>
+    <button id="zIn" data-i18n-title="bc_bigger">A+</button>
+    <span class="sep ctl-only"></span>
+    <button class="ctl-only" id="bPrev" data-i18n-title="t_prev">◀</button>
+    <select class="ctl-only" id="bGoto" data-i18n-title="bc_goto"></select>
+    <button class="ctl-only" id="bNext" data-i18n-title="t_next">▶</button>
+    <button class="ctl-only main" id="bMain"></button>
+    <button class="ctl-only" id="bDraw" data-i18n-title="dr_button">🎲</button>
+    <span class="sep"></span>
+    <button id="bFull" data-i18n-title="bc_fullscreen">⛶</button>
+  </div>
   <script src="/static/vendor/katex/katex.min.js"></script>
   <script src="/static/tex.js"></script>
   <script src="/static/i18n.js"></script>

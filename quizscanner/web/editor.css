@@ -127,3 +127,11 @@ code { background: var(--paper); padding: 2px 6px; border-radius: 5px; border: 1
   background: var(--ink-3); color: var(--ink-text); border: 1px solid var(--ink-line); padding: 11px 20px; border-radius: 10px;
   font-weight: 700; opacity: 0; transition: opacity .25s; pointer-events: none; }
 .toast.show { opacity: .96; }
+
+/* import z Worda / listy uczniów */
+.ed-link { color: var(--accent); font-weight: 700; }
+.import-warn { border-color: var(--a); background: color-mix(in srgb, var(--a) 12%, var(--card)); }
+.import-warn ul { margin: 6px 0 0; padding-left: 20px; }
+.import-warn b { display: block; }
+#className { margin-bottom: 10px; }
+.qlist li .cnt { color: var(--muted); font-weight: 600; }

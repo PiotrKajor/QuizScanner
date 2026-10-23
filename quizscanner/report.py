@@ -128,6 +128,7 @@ def build(session):
         scores = dict(session.scores)
         title = session.quiz.get("title", "")
         quiz_name = session.quiz_name
+        class_name = getattr(session, "class_name", "")
         # Powrót do pytania i ponowne "Pokaż wynik" dokłada drugi wpis dla tego
         # samego pytania -- liczy się ostatni.
         by_index = {}
@@ -159,7 +160,10 @@ def build(session):
             "distribution": dist,
         })
 
-    ids = sorted(set(list(scores) + [i for h in history for i in h.get("answers", {})]))
+    # Uczniowie z listy klasy, którzy nie podnieśli karty ani razu, też trafiają
+    # do raportu (0 pkt) — nauczyciel widzi, kogo brakowało.
+    ids = sorted(set(list(scores) + [i for h in history for i in h.get("answers", {})]
+                     + (list(roster) if history else [])))
     students = []
     for mid in ids:
         per_q, ok, answered = [], 0, 0
@@ -185,21 +189,26 @@ def build(session):
         s["place"] = place
 
     hardest = min(questions, key=lambda q: q["percent"]) if questions else None
+    # Średnie liczymy z obecnych (odpowiedzieli choć raz) — nieobecny z zerem
+    # zaniżałby wynik klasy.
+    present = [s for s in students if s["answered"]]
     return {
         "app": "QuizScanner",
         "version": VERSION,
         "generated": dt.datetime.now().isoformat(timespec="seconds"),
         "quiz_title": title,
         "quiz_file": quiz_name,
+        "class_name": class_name,
         "questions": questions,
         "students": students,
         "summary": {
-            "students": len(students),
+            "students": len(present),
+            "absent": len(students) - len(present),
             "questions": len(questions),
-            "avg_score": round(sum(s["score"] for s in students) / len(students), 1)
-                         if students else 0,
-            "avg_percent": round(sum(s["percent"] for s in students) / len(students), 1)
-                           if students else 0.0,
+            "avg_score": round(sum(s["score"] for s in present) / len(present), 1)
+                         if present else 0,
+            "avg_percent": round(sum(s["percent"] for s in present) / len(present), 1)
+                           if present else 0.0,
             "best": students[0]["name"] if students else "",
             "hardest_n": hardest["n"] if hardest else None,
             "hardest_text": hardest["text"] if hardest else "",
@@ -216,6 +225,8 @@ def file_stem(data):
     http.server koduje w latin-1 — polska litera wywracała tam pobieranie.
     """
     base = data.get("quiz_file") or data.get("quiz_title") or "quiz"
+    if data.get("class_name"):
+        base += " " + data["class_name"]
     base = re.sub(r"[^A-Za-z0-9_\- ]", "", ascii_pl(base)).strip().replace(" ", "_")
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M")
     return f"raport_{base or 'quiz'}_{stamp}"
@@ -255,9 +266,10 @@ def to_txt(data):
     s = data["summary"]
     out = [f"{data['app']} {data['version']} — raport",
            f"Quiz: {data['quiz_title']}",
+           f"Klasa: {data.get('class_name') or '—'}",
            f"Data: {data['generated']}",
-           f"Uczniowie: {s['students']}   Pytania: {s['questions']}   "
-           f"Średnio poprawnych: {s['avg_percent']}%", "",
+           f"Uczniowie: {s['students']}   Nieobecni: {s.get('absent', 0)}   "
+           f"Pytania: {s['questions']}   Średnio poprawnych: {s['avg_percent']}%", "",
            "RANKING", "-" * 52]
     for st in data["students"]:
         out.append(f"{st['place']:>3}. {st['name']:<28} {st['score']:>6} pkt   "
@@ -321,7 +333,7 @@ footer{{margin-top:28px;color:var(--muted);font-size:12px;text-align:center}}
 @media print{{body{{background:#fff;padding:0}}.wrap{{border:0;padding:0}}}}
 </style></head><body><div class="wrap">
 <div class="head"><h1>{_esc(data['quiz_title'] or 'Quiz')}</h1>
-<div class="meta">Raport QuizScanner {data['version']} · {_esc(data['generated'].replace('T', ' '))}</div></div>
+<div class="meta">{_esc(data.get('class_name') or '')}{' · ' if data.get('class_name') else ''}Raport QuizScanner {data['version']} · {_esc(data['generated'].replace('T', ' '))}</div></div>
 <div class="cards">
   <div class="card"><span>Uczniowie</span><b>{s['students']}</b></div>
   <div class="card"><span>Pytania</span><b>{s['questions']}</b></div>
@@ -434,7 +446,8 @@ def to_pdf(data):
     s = data["summary"]
     text(data["quiz_title"] or "Quiz", MARGIN, 40, True)
     y += 54
-    text(f"Raport QuizScanner {data['version']} · {data['generated'].replace('T', ' ')}",
+    klasa = f"{data['class_name']} · " if data.get("class_name") else ""
+    text(f"{klasa}Raport QuizScanner {data['version']} · {data['generated'].replace('T', ' ')}",
          MARGIN, 20, False, muted)
     y += 32
     draw.rectangle([MARGIN, y, A4[0] - MARGIN, y + 4], fill=accent)

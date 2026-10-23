@@ -29,6 +29,59 @@ $("loadBtn").onclick = async () => {
   refreshState();
 };
 
+// ---- klasy ----
+let lastState = null;
+async function loadClasses() {
+  const r = await api("/api/classes");
+  $("classSel").innerHTML = (r.classes || []).map(c =>
+    `<option value="${esc(c.id)}" ${c.id === r.active ? "selected" : ""}>👥 ${esc(c.name)} (${c.count})</option>`).join("");
+}
+$("classSel").onchange = async () => {
+  const played = lastState && (lastState.leaderboard || []).length;
+  if (played && !confirm(t("cl_confirm_switch"))) { loadClasses(); return; }
+  await api("/api/class/select", { id: $("classSel").value, reset: true });
+  refreshState();
+};
+
+// ---- losowanie ucznia ----
+$("drawBtn").onclick = async () => {
+  const r = await ctl("draw");
+  $("drawOut").innerHTML = r.ok
+    ? `🎲 <b>${esc(r.draw.name)}</b> · ${t("dr_left", { n: r.draw.left })}`
+    : t("dr_empty");
+};
+$("speakToggle").onchange = () =>
+  api("/api/settings", { speak_draw: $("speakToggle").checked });
+
+// ---- wznowiona gra ----
+$("restoreNew").onclick = () => {
+  if (confirm(t("t_confirm_reset"))) ctl("reset").then(refreshState);
+};
+$("restoreOk").onclick = () => ctl("dismiss_restore").then(refreshState);
+
+// ---- pilot w telefonie ----
+async function showPair() {
+  const ip = $("pairIp").value;
+  const r = await api("/api/pair" + (ip ? "?ip=" + encodeURIComponent(ip) : ""));
+  $("pairQr").src = "/api/pair.png?ip=" + encodeURIComponent(r.ip) + "&t=" + Date.now();
+  $("pairUrl").textContent = r.url;
+  $("pairIp").innerHTML = r.ips.map(a =>
+    `<option ${a === r.ip ? "selected" : ""}>${esc(a)}</option>`).join("");
+  $("pairIpRow").classList.toggle("hidden", r.ips.length < 2);
+  $("pairModal").classList.remove("hidden");
+}
+$("pairBtn").onclick = showPair;
+$("pairIp").onchange = showPair;
+$("pairClose").onclick = () => $("pairModal").classList.add("hidden");
+$("pairModal").onclick = e => {
+  if (e.target === $("pairModal")) $("pairModal").classList.add("hidden");
+};
+$("pairReset").onclick = async () => {
+  if (!confirm(t("pr_reset_confirm"))) return;
+  await api("/api/pair/reset", {});
+  showPair();
+};
+
 // ---- ustawienia aplikacji ----
 $("langSel").onchange = async () => {
   await api("/api/settings", { lang: $("langSel").value });
@@ -145,6 +198,7 @@ async function loadSettings() {
   $("volVal").textContent = $("volume").value + "%";
   $("autoReportToggle").checked = s.auto_report !== false;
   $("updateToggle").checked = s.check_updates !== false;
+  $("speakToggle").checked = !!s.speak_draw;
 }
 
 // ---- raport ----
@@ -306,11 +360,14 @@ const PHASE_KEY = { idle: "idle", question: "question", reveal: "reveal", podium
 async function refreshState() {
   let st;
   try { st = await api("/api/state?full=1"); } catch (e) { return; }
+  // Urządzenie odłączone przyciskiem „Odłącz wszystkie” — wraca do pilota z instrukcją.
+  if (st.error === "locked") { location.href = "/remote"; return; }
   const q = st.question;
   $("counter").textContent = st.total
     ? t("t_question_of", { n: st.index + 1, total: st.total }) : "—";
+  lastState = st;
   const ph = $("phase");
-  ph.textContent = st.phase;
+  ph.textContent = t("ph_" + st.phase);
   ph.className = "phase " + (PHASE_KEY[st.phase] || "idle");
   $("qtext").innerHTML = q ? tex(q.text) : TeX.esc(t("t_load_quiz_first"));
   $("timeLeft").textContent = st.time_left != null ? Math.ceil(st.time_left) + " s" : "—";
@@ -335,6 +392,17 @@ async function refreshState() {
   ["startBtn", "revealBtn", "nextBtn", "prevBtn"].forEach(
     id => { $(id).disabled = !!st.auto_mode; });
 
+  const rb = $("restoreBar");
+  rb.classList.toggle("hidden", !st.restored_at);
+  if (st.restored_at)
+    $("restoreText").textContent = t("rs_restored", {
+      time: new Date(st.restored_at * 1000).toLocaleTimeString().slice(0, 5) });
+
+  const missing = st.missing || [];
+  $("missing").classList.toggle("hidden", !missing.length);
+  $("missing").textContent = missing.length
+    ? t("rm_missing", { n: missing.length }) + ": " + missing.map(m => m.name).join(", ") : "";
+
   renderOpts(st);
   renderStudents(st);
   renderLead(st);
@@ -345,6 +413,7 @@ async function refreshState() {
 document.addEventListener("i18n:changed", () => {
   fillThemeSelect($("themeSel"));
   loadQuizList();
+  loadClasses();
   loadMeta();
 });
 
@@ -355,6 +424,7 @@ document.addEventListener("i18n:changed", () => {
   await loadSettings();
   $("langSel").value = document.documentElement.lang;
   loadQuizList();
+  loadClasses();
   loadMeta();
   refreshState();
   checkUpdate();

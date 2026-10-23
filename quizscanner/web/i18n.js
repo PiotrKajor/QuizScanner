@@ -191,6 +191,74 @@ const I18N = {
     s_auto_gap_s: "Auto: przerwa przed pytaniem (s)",
     s_applied: "Zastosowano do wszystkich pytań",
     s_app_settings: "Ustawienia aplikacji",
+
+    // --- fazy pytania ---
+    ph_idle: "przygotowanie", ph_question: "zbieranie", ph_reveal: "wynik", ph_podium: "koniec",
+
+    // --- pilot w telefonie ---
+    pr_button: "📱 Pilot w telefonie",
+    pr_title: "Pilot w telefonie",
+    pr_intro: "Zeskanuj kod aparatem telefonu podłączonego do tej samej sieci Wi-Fi. Telefon zapamięta parowanie.",
+    pr_network: "Sieć",
+    pr_link: "Albo otwórz ten adres w przeglądarce telefonu lub drugiego komputera:",
+    pr_security: "Bez parowania inne urządzenia w sieci widzą tylko tablicę — nie przełączą pytania, nie zobaczą poprawnej odpowiedzi ani obrazu z kamery.",
+    pr_reset: "Odłącz wszystkie urządzenia",
+    pr_reset_confirm: "Odłączyć wszystkie sparowane urządzenia? Trzeba będzie zeskanować nowy kod.",
+    rm_locked_title: "Ten telefon nie jest sparowany",
+    rm_bad_key: "Ten kod jest nieaktualny — zeskanuj nowy.",
+    rm_locked_1: "Na komputerze nauczyciela otwórz panel QuizScanner.",
+    rm_locked_2: "Kliknij „📱 Pilot w telefonie”.",
+    rm_locked_3: "Zeskanuj kod QR aparatem tego telefonu.",
+    rm_open_board: "Otwórz tablicę (tylko podgląd) →",
+    rm_more: "Quiz i klasa",
+    rm_quiz: "Quiz",
+    rm_full_panel: "Pełny panel",
+    rm_restart: "⟲ Zagraj od nowa",
+    rm_missing: "Bez odpowiedzi ({n})",
+
+    // --- losowanie ucznia ---
+    dr_button: "🎲 Losuj ucznia",
+    dr_left: "zostało do wylosowania: {n}",
+    dr_empty: "Lista uczniów tej klasy jest pusta.",
+    dr_kicker: "Odpowiada",
+    dr_speak_label: "Czytaj wylosowane imię",
+    dr_speak_sub: "Tablica wypowiada imię głosem zainstalowanym w systemie — bez internetu.",
+
+    // --- klasy ---
+    cl_label: "Klasa",
+    cl_classes: "Klasy",
+    cl_new: "+ Nowa klasa",
+    cl_name: "Nazwa klasy",
+    cl_delete: "🗑 Usuń klasę",
+    cl_active: "Klasa, z którą toczy się gra",
+    cl_name_needed: "Podaj nazwę klasy.",
+    cl_exists: "Klasa o tej nazwie już istnieje.",
+    cl_confirm_delete: "Usunąć klasę {name}?",
+    cl_confirm_switch: "Zmiana klasy zaczyna grę od nowa (punkty zostaną wyzerowane). Kontynuować?",
+    cl_last: "Nie można usunąć ostatniej klasy.",
+    cl_save_first: "Najpierw zapisz klasę.",
+
+    // --- wznowienie ---
+    rs_restored: "Wznowiono przerwaną grę (zapis z {time}) — punkty i pytanie są takie jak przed zamknięciem.",
+    rs_new_game: "Zacznij od nowa",
+
+    // --- tablica: pasek ---
+    bc_smaller: "Mniejszy tekst (−)",
+    bc_bigger: "Większy tekst (+)",
+    bc_goto: "Przejdź do pytania",
+    bc_fullscreen: "Pełny ekran (F)",
+
+    // --- import ---
+    wi_button: "📄 Wczytaj z Worda / tekstu",
+    wi_hint: "Pytania „1.”, odpowiedzi „A.”–„D.”, poprawna: „Odpowiedź: B”.",
+    wi_template: "Pobierz szablon .docx",
+    wi_failed: "Nie udało się wczytać pliku:",
+    wi_done: "Wczytano pytań: {n}. Sprawdź je i kliknij „Zapisz”.",
+    ri_button: "📥 Wczytaj z pliku (CSV/Excel)",
+    ri_hint: "Eksport z dziennika albo arkusz: imię i nazwisko w wierszu, numer karty opcjonalnie.",
+    ri_export: "⬇ Zapisz listę do CSV",
+    ri_failed: "Nie udało się wczytać listy:",
+    ri_done: "Wczytano uczniów: {n}. Sprawdź listę i kliknij „Zapisz listę”.",
   },
 
   en: {
@@ -372,6 +440,74 @@ const I18N = {
     s_auto_gap_s: "Auto: pause before next question (s)",
     s_applied: "Applied to all questions",
     s_app_settings: "Application settings",
+
+    // --- question phases ---
+    ph_idle: "getting ready", ph_question: "collecting", ph_reveal: "result", ph_podium: "finished",
+
+    // --- phone remote ---
+    pr_button: "📱 Phone remote",
+    pr_title: "Phone remote",
+    pr_intro: "Scan the code with the camera of a phone on the same Wi-Fi network. The phone remembers the pairing.",
+    pr_network: "Network",
+    pr_link: "Or open this address in the browser of a phone or another computer:",
+    pr_security: "Without pairing, other devices on the network only see the board — they cannot change the question, see the correct answer or the camera image.",
+    pr_reset: "Disconnect all devices",
+    pr_reset_confirm: "Disconnect all paired devices? A new code will have to be scanned.",
+    rm_locked_title: "This phone is not paired",
+    rm_bad_key: "This code is out of date — scan a new one.",
+    rm_locked_1: "Open the QuizScanner panel on the teacher's computer.",
+    rm_locked_2: "Click “📱 Phone remote”.",
+    rm_locked_3: "Scan the QR code with this phone's camera.",
+    rm_open_board: "Open the board (view only) →",
+    rm_more: "Quiz and class",
+    rm_quiz: "Quiz",
+    rm_full_panel: "Full panel",
+    rm_restart: "⟲ Play again",
+    rm_missing: "No answer yet ({n})",
+
+    // --- student draw ---
+    dr_button: "🎲 Pick a student",
+    dr_left: "left to pick: {n}",
+    dr_empty: "This class has no students on the list.",
+    dr_kicker: "Your turn",
+    dr_speak_label: "Read the picked name aloud",
+    dr_speak_sub: "The board says the name with a voice installed in the system — no internet needed.",
+
+    // --- classes ---
+    cl_label: "Class",
+    cl_classes: "Classes",
+    cl_new: "+ New class",
+    cl_name: "Class name",
+    cl_delete: "🗑 Delete class",
+    cl_active: "Class the game is played with",
+    cl_name_needed: "Enter a class name.",
+    cl_exists: "A class with this name already exists.",
+    cl_confirm_delete: "Delete class {name}?",
+    cl_confirm_switch: "Switching the class starts the game over (points are reset). Continue?",
+    cl_last: "The last class cannot be deleted.",
+    cl_save_first: "Save the class first.",
+
+    // --- resume ---
+    rs_restored: "Resumed an interrupted game (saved at {time}) — points and question are as before closing.",
+    rs_new_game: "Start over",
+
+    // --- board bar ---
+    bc_smaller: "Smaller text (−)",
+    bc_bigger: "Bigger text (+)",
+    bc_goto: "Go to question",
+    bc_fullscreen: "Full screen (F)",
+
+    // --- import ---
+    wi_button: "📄 Import from Word / text",
+    wi_hint: "Questions “1.”, answers “A.”–“D.”, correct one: “Answer: B”.",
+    wi_template: "Download .docx template",
+    wi_failed: "Could not read the file:",
+    wi_done: "Questions imported: {n}. Check them and click “Save”.",
+    ri_button: "📥 Import from file (CSV/Excel)",
+    ri_hint: "Gradebook export or spreadsheet: a name per row, card number optional.",
+    ri_export: "⬇ Save list as CSV",
+    ri_failed: "Could not read the list:",
+    ri_done: "Students imported: {n}. Check the list and click “Save list”.",
   },
 };
 

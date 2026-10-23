@@ -16,10 +16,12 @@ Serwer HTTP stoi na czystej bibliotece standardowej Pythona (bez Flask).
 | `quizscanner/camera.py`, `scanner.py`, `aruco.py` | kamera i detekcja markerów |
 | `quizscanner/cards.py` | generator kart do druku (PNG/PDF) |
 | `quizscanner/report.py` | raport: dane + eksport pdf/xlsx/csv/html/json/txt |
+| `quizscanner/quiz_import.py` | import pytań z .docx/.txt (zipfile, bez python-docx) + szablon .docx |
+| `quizscanner/roster_import.py` | import listy uczniów z CSV/XLSX, eksport CSV |
 | `quizscanner/updater.py` | sprawdzanie i pobieranie nowych wydań z GitHuba |
 | `quizscanner/paths.py` | ścieżki zasobów i danych (źródła vs `.exe`) |
 | `quizscanner/web/` | interfejs; `vendor/katex/` to cudzy kod — nie ruszać |
-| `data/` | dane użytkownika (quizy, media, lista uczniów, raporty) |
+| `data/` | dane użytkownika (quizy, media, klasy w `klasy/`, raporty, `sesja.json`, `pair_key.txt`) |
 
 ## Codzienna praca
 
@@ -93,6 +95,15 @@ Wymagania: Python 3.10+, `pip install -r requirements.txt pyinstaller`,
   komunikaty). Wyjątek w linii: komentarz `polish-ok`.
 - **`quizscanner/web/vendor/` to cudzy kod** (KaTeX, MIT) — nie edytować i nie
   poprawiać w nim polskich znaków; narzędzia z `tools/` pomijają ten katalog.
+- **Dostęp z sieci jest ograniczony** (`Handler.authorized` w `server.py`).
+  Publiczne są tylko: `/board`, `/remote`, `/pair`, `/static/`, `/media/`,
+  `GET /api/state` bez `full=1`, `GET /api/settings`, `/api/whoami`. Każdy nowy
+  endpoint ląduje domyślnie za bramką — nie przenoś go wyżej bez powodu.
+  POST musi mieć `Content-Type: application/json` (ochrona przed CSRF).
+  Komputer nauczyciela (localhost i własne IP w LAN) ma pełny dostęp, inne
+  urządzenia po sparowaniu kodem QR (ciasteczko `qs_key`).
+- **`selftest.py` nie może ruszać danych nauczyciela** — pracuje na klasie
+  `_selftest` i po sobie sprząta (klasa, `sesja.json`, ustawienia).
 - **Aplikacja musi działać offline.** Żadnych CDN-ów ani zewnętrznych zasobów;
   jedyne połączenie na zewnątrz to sprawdzanie aktualizacji, które użytkownik
   może wyłączyć.
