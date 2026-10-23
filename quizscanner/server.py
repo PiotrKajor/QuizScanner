@@ -14,25 +14,37 @@ Adresy:
   Tablica (rzutnik) : http://localhost:PORT/board
   Edytor pytań      : http://localhost:PORT/editor
   Tablica w sieci   : http://<IP-w-LAN>:PORT/board
+  Pilot (telefon)   : http://<IP-w-LAN>:PORT/remote  (po sparowaniu kodem QR)
+
+Dostęp z sieci: tablica i podgląd stanu są publiczne (tylko do odczytu, bez
+poprawnej odpowiedzi przed odsłonięciem). Sterowanie, edycja, raporty
+i obraz z kamery działają na komputerze nauczyciela oraz na urządzeniach
+sparowanych kodem QR z panelu — uczeń w tej samej sieci Wi-Fi nie przełączy
+pytania ani nie podejrzy poprawnej odpowiedzi.
 """
 
 import argparse
 import json
 import os
 import re
+import secrets
 import socket
 import sys
 import threading
 import time
 import webbrowser
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 from . import VERSION
+from . import quiz_import
 from . import report as report_mod
+from . import roster_import
 from . import updater
-from .paths import (DATA_DIR, MEDIA_DIR, QUIZ_DIR, REPORT_DIR, ROSTER_JSON,
-                    SETTINGS_JSON, STUDENTS_CSV, WEB_DIR, ascii_pl, seed_data)
+from .paths import (CLASS_DIR, DATA_DIR, MEDIA_DIR, PAIR_KEY, QUIZ_DIR,
+                    REPORT_DIR, ROSTER_JSON, SESSION_JSON, SETTINGS_JSON,
+                    STUDENTS_CSV, WEB_DIR, ascii_pl, seed_data)
 from .session import QuizSession, PHASE_IDLE
 from .camera import CameraScanner
 
@@ -47,6 +59,9 @@ DEFAULT_SETTINGS = {
     "volume": 0.6,         # głośność dźwięków (0..1)
     "auto_report": True,   # zapisuj raport automatycznie po zakończeniu quizu
     "check_updates": True,  # sprawdzaj nowe wydania na GitHubie
+    "speak_draw": False,   # tablica czyta na głos wylosowane imię (głos systemu)
+    "class": "",           # aktywna klasa (nazwa pliku w data/klasy)
+    "last_quiz": "",       # ostatnio wczytany quiz — wraca po ponownym starcie
 }
 settings = dict(DEFAULT_SETTINGS)
 
@@ -138,8 +153,8 @@ def delete_quiz(name):
         os.remove(path)
 
 
-def load_roster():
-    """Roster z roster.json, a jeśli brak -- ze students.csv."""
+def _legacy_roster():
+    """Lista sprzed wersji 3.2: roster.json, a jeśli brak -- students.csv."""
     if os.path.exists(ROSTER_JSON):
         with open(ROSTER_JSON, encoding="utf-8") as f:
             data = json.load(f)
@@ -154,9 +169,146 @@ def load_roster():
     return roster
 
 
+# --------------------------- klasy ---------------------------
+# Każda klasa to osobny plik data/klasy/<id>.json: {"name": "3B", "students":
+# {"0": "Anna Nowak", ...}}. Numery kart są w obrębie klasy, więc ten sam
+# wydruk kart 0..29 służy każdej klasie. Aktywną klasę pamięta settings["class"].
+DEFAULT_CLASS = "Moja klasa"
+
+
+def class_path(cid):
+    return os.path.join(CLASS_DIR, safe_name(cid) + ".json")
+
+
+def read_class(cid):
+    with open(class_path(cid), encoding="utf-8") as f:
+        data = json.load(f)
+    return {"id": safe_name(cid), "name": data.get("name") or cid,
+            "students": {int(k): v for k, v in (data.get("students") or {}).items()}}
+
+
+def write_class(cid, name, students):
+    os.makedirs(CLASS_DIR, exist_ok=True)
+    with open(class_path(cid), "w", encoding="utf-8") as f:
+        json.dump({"name": name, "students": {str(k): v for k, v in sorted(students.items())}},
+                  f, ensure_ascii=False, indent=2)
+
+
+def list_classes():
+    """Klasy posortowane po nazwie; przy pierwszym uruchomieniu wersji 3.2
+    dotychczasowa lista uczniów staje się klasą „Moja klasa"."""
+    os.makedirs(CLASS_DIR, exist_ok=True)
+    ids = [f[:-5] for f in os.listdir(CLASS_DIR) if f.endswith(".json")]
+    if not ids:
+        write_class(safe_name(DEFAULT_CLASS), DEFAULT_CLASS, _legacy_roster())
+        ids = [safe_name(DEFAULT_CLASS)]
+    out = []
+    for cid in ids:
+        try:
+            c = read_class(cid)
+        except (OSError, ValueError):
+            continue
+        out.append({"id": cid, "name": c["name"], "count": len(c["students"])})
+    return sorted(out, key=lambda c: c["name"].lower())
+
+
+def active_class():
+    classes = list_classes()
+    ids = [c["id"] for c in classes]
+    cid = settings.get("class") if settings.get("class") in ids else ids[0]
+    return read_class(cid)
+
+
+def load_roster():
+    return active_class()["students"]
+
+
 def save_roster(roster):
-    with open(ROSTER_JSON, "w", encoding="utf-8") as f:
-        json.dump({str(k): v for k, v in roster.items()}, f, ensure_ascii=False, indent=2)
+    c = active_class()
+    write_class(c["id"], c["name"], roster)
+
+
+def activate_class(cid):
+    """Przełącza klasę: lista uczniów sesji i (gdy trzeba) nowa rozgrywka."""
+    c = read_class(cid)
+    settings["class"] = c["id"]
+    save_settings()
+    session.set_roster(c["students"], c["name"])
+    return c
+
+
+# --------------------------- dostęp z sieci ---------------------------
+pair_key = None
+
+
+def load_pair_key(regenerate=False):
+    """Klucz sparowanych urządzeń. Trzymany na dysku, żeby telefon nie musiał
+    parować się od nowa po każdym uruchomieniu programu."""
+    global pair_key
+    if not regenerate:
+        try:
+            with open(PAIR_KEY, encoding="utf-8") as f:
+                pair_key = f.read().strip() or None
+        except OSError:
+            pair_key = None
+    if regenerate or not pair_key:
+        pair_key = secrets.token_urlsafe(24)
+        try:
+            with open(PAIR_KEY, "w", encoding="utf-8") as f:
+                f.write(pair_key)
+        except OSError:
+            pass
+    return pair_key
+
+
+def qr_png(text, scale=8, border=4):
+    """Kod QR jako PNG (koder z OpenCV — bez dodatkowej biblioteki)."""
+    import cv2
+    import numpy as np
+    m = cv2.QRCodeEncoder.create().encode(text)
+    m = np.pad(m, border, constant_values=255)
+    m = cv2.resize(m, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+    return cv2.imencode(".png", m)[1].tobytes()
+
+
+# --------------------------- wznowienie gry ---------------------------
+RESTORE_MAX_AGE = 12 * 3600
+
+
+def autosave_session(_session=None):
+    """Migawka gry po każdym wyniku i zmianie pytania — po zamknięciu
+    programu (albo awarii) można wrócić do tego samego miejsca."""
+    snap = session.snapshot()
+    if not snap["history"] and not snap["index"]:
+        return
+    try:
+        tmp = SESSION_JSON + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(snap, f, ensure_ascii=False)
+        os.replace(tmp, SESSION_JSON)
+    except OSError:
+        pass
+
+
+def try_restore_session():
+    """Przy starcie: wczytaj przerwaną grę, jeśli jest świeża i niedokończona."""
+    try:
+        with open(SESSION_JSON, encoding="utf-8") as f:
+            snap = json.load(f)
+    except (OSError, ValueError):
+        return False
+    if (snap.get("finished") or not snap.get("quiz_name")
+            or time.time() - float(snap.get("saved_at", 0)) > RESTORE_MAX_AGE):
+        return False
+    try:
+        quiz = read_quiz(snap["quiz_name"])
+    except (OSError, ValueError):
+        return False
+    for c in list_classes():
+        if c["name"] == snap.get("class_name"):
+            activate_class(c["id"])
+    session.load_quiz(quiz, safe_name(snap["quiz_name"]))
+    return session.restore(snap)
 
 
 def placeholder_jpeg(text):
@@ -171,15 +323,41 @@ def placeholder_jpeg(text):
     return buf.getvalue()
 
 
-def lan_ip():
+_ips_cache = (0.0, None)
+
+
+def lan_ips():
+    """Adresy IPv4 komputera w sieci lokalnej, najpewniejszy pierwszy.
+
+    Trasa do 8.8.8.8 wskazuje kartę z dostępem do świata (nic nie jest
+    wysyłane); w szkolnej sieci bez internetu jej nie ma, więc dokładamy
+    adresy przypisane do nazwy komputera. Wynik trzymamy pół minuty — pytamy
+    o niego przy każdym zapytaniu (sprawdzanie dostępu)."""
+    global _ips_cache
+    if _ips_cache[1] and time.time() - _ips_cache[0] < 30:
+        return _ips_cache[1]
+    found = []
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
+        found.append(s.getsockname()[0])
         s.close()
-        return ip
     except Exception:
-        return "127.0.0.1"
+        pass
+    try:
+        found += socket.gethostbyname_ex(socket.gethostname())[2]
+    except Exception:
+        pass
+    out = []
+    for ip in found:
+        if ip not in out and not ip.startswith(("127.", "169.254.")):
+            out.append(ip)
+    _ips_cache = (time.time(), out or ["127.0.0.1"])
+    return _ips_cache[1]
+
+
+def lan_ip():
+    return lan_ips()[0]
 
 
 def export_quiz_bundle(quiz):
@@ -226,6 +404,18 @@ def import_quiz_bundle(bundle):
     return quiz
 
 
+def decode_upload(data_url):
+    """Zawartość pliku przesłanego z przeglądarki jako data:URL."""
+    import base64
+    import binascii
+    if not data_url.startswith("data:") or "," not in data_url:
+        raise ValueError("brak pliku")
+    try:
+        return base64.b64decode(data_url.split(",", 1)[1])
+    except (binascii.Error, ValueError):
+        raise ValueError("uszkodzony plik")
+
+
 def save_media(data_url, orig_name=""):
     """Zapisuje plik przesłany jako data:URL. Zwraca (nazwa, typ) albo błąd."""
     import base64
@@ -249,7 +439,7 @@ def save_media(data_url, orig_name=""):
     return fname, kind
 
 
-def build_cards_pdf(count=None):
+def build_cards_pdf(count=None, roster=None):
     """Tworzy w pamięci PDF z kartami ArUco (jedna karta na stronę A4).
     Domyślnie karty dla aktualnej listy uczniów; jeśli lista pusta lub podano
     count -- karty o numerach 0..count-1."""
@@ -260,8 +450,9 @@ def build_cards_pdf(count=None):
     from .cards import make_card
 
     dictionary = get_dictionary()
-    with session.lock:
-        roster = dict(session.roster)
+    if roster is None:
+        with session.lock:
+            roster = dict(session.roster)
 
     if roster and not count:
         ids = sorted(roster)
@@ -334,13 +525,49 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def redirect(self, location):
+    def redirect(self, location, cookie=None):
         self.send_response(302)
         self.send_header("Location", location)
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def read_json_body(self):
+    def send_blob(self, body, ctype, filename=None):
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    # ---- dostęp ----
+    def is_local(self):
+        """Zapytanie z tego samego komputera (także przez jego adres w LAN)."""
+        ip = self.client_address[0]
+        if ip.startswith("::ffff:"):
+            ip = ip[7:]
+        return ip in ("127.0.0.1", "::1") or ip in lan_ips()
+
+    def authorized(self):
+        if self.is_local():
+            return True
+        try:
+            jar = SimpleCookie(self.headers.get("Cookie", ""))
+        except Exception:
+            return False
+        got = jar["qs_key"].value if "qs_key" in jar else ""
+        return bool(pair_key and got and secrets.compare_digest(got.encode(), pair_key.encode()))
+
+    def locked(self):
+        return self.send_json({"ok": False, "error": "locked"}, code=403)
+
+    def read_json_body(self, limit=MEDIA_MAX_MB * 1024 * 1024 * 2):
         length = int(self.headers.get("Content-Length", 0))
+        if length > limit:
+            return {}
         if not length:
             return {}
         raw = self.rfile.read(length)
@@ -387,22 +614,86 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         query = parse_qs(parsed.query)
 
+        # --- publiczne: tablica, pilot, zasoby, stan tylko do odczytu ---
         if path == "/":
-            return self.redirect("/teacher")
-        if path == "/teacher":
-            return self.send_file(os.path.join(WEB_DIR, "teacher.html"))
+            return self.redirect("/teacher" if self.authorized() else "/board")
         if path == "/board":
             return self.send_file(os.path.join(WEB_DIR, "board.html"))
-        if path == "/editor":
-            return self.send_file(os.path.join(WEB_DIR, "editor.html"))
+        if path == "/remote":
+            return self.send_file(os.path.join(WEB_DIR, "remote.html"))
+        if path == "/pair":
+            # Link z kodu QR: zapisuje klucz w ciasteczku i przechodzi do pilota.
+            key = query.get("k", [""])[0]
+            if pair_key and secrets.compare_digest(key.encode(), pair_key.encode()):
+                return self.redirect(
+                    "/remote", cookie=f"qs_key={pair_key}; Max-Age=31536000; "
+                                      "Path=/; HttpOnly; SameSite=Lax")
+            return self.redirect("/remote?bad=1")
         if path.startswith("/static/"):
             rel = path[len("/static/"):]
             rel = os.path.normpath(rel).replace("\\", "/")
             if rel.startswith(".."):
                 return self.send_error(403)
             return self.send_file(os.path.join(WEB_DIR, rel))
+        if path.startswith("/media/"):
+            fn = os.path.basename(path[len("/media/"):])
+            return self.send_file(os.path.join(MEDIA_DIR, fn))
+        if path == "/api/settings":
+            return self.send_json(settings)
+        if path == "/api/whoami":
+            return self.send_json({"authorized": self.authorized(), "local": self.is_local()})
+        if path == "/api/state" and query.get("full", ["0"])[0] != "1":
+            return self.send_json(session.state(full=False))
+
+        # --- dalej tylko komputer nauczyciela i sparowane urządzenia ---
+        if not self.authorized():
+            if path in ("/teacher", "/editor"):
+                return self.redirect("/remote")
+            return self.locked()
+
+        if path == "/teacher":
+            return self.send_file(os.path.join(WEB_DIR, "teacher.html"))
+        if path == "/editor":
+            return self.send_file(os.path.join(WEB_DIR, "editor.html"))
         if path == "/video_feed":
             return self.stream_mjpeg()
+        if path == "/api/pair":
+            port = self.server.server_address[1]
+            ips = lan_ips()
+            ip = query.get("ip", [ips[0]])[0]
+            if ip not in ips:
+                ip = ips[0]
+            return self.send_json({"url": f"http://{ip}:{port}/pair?k={pair_key}",
+                                   "ips": ips, "ip": ip})
+        if path == "/api/pair.png":
+            ips = lan_ips()
+            ip = query.get("ip", [ips[0]])[0]
+            if ip not in ips:
+                ip = ips[0]
+            url = f"http://{ip}:{self.server.server_address[1]}/pair?k={pair_key}"
+            return self.send_blob(qr_png(url), "image/png")
+        if path == "/api/classes":
+            return self.send_json({"classes": list_classes(), "active": active_class()["id"]})
+        if path == "/api/class":
+            try:
+                c = read_class(query.get("id", [""])[0])
+            except (OSError, ValueError):
+                return self.send_error(404, "Brak klasy")
+            return self.send_json({"id": c["id"], "name": c["name"],
+                                   "students": {str(k): v for k, v in c["students"].items()}})
+        if path == "/api/roster.csv":
+            try:
+                c = read_class(query["id"][0]) if "id" in query else active_class()
+            except (OSError, ValueError):
+                return self.send_error(404, "Brak klasy")
+            return self.send_blob(roster_import.export_csv(c["students"]),
+                                  "text/csv; charset=utf-8",
+                                  f"uczniowie_{safe_name(c['name']).replace(' ', '_')}.csv")
+        if path == "/api/quiz/template.docx":
+            return self.send_blob(
+                quiz_import.template_docx(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "szablon_quizu_QuizScanner.docx")
 
         if path == "/api/report":
             fmt = (query.get("format", ["pdf"])[0] or "pdf").lower()
@@ -440,8 +731,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/cards.pdf":
             c = query.get("count", [None])[0]
             c = int(c) if (c and c.isdigit()) else None
+            cls = query.get("class", [None])[0]
             try:
-                pdf = build_cards_pdf(count=c)
+                roster = read_class(cls)["students"] if cls else None
+                pdf = build_cards_pdf(count=c, roster=roster)
             except Exception as e:
                 return self.send_error(500, f"Błąd generowania kart: {e}")
             self.send_response(200)
@@ -454,12 +747,9 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(pdf)
             return
 
-        # API
         if path == "/api/state":
-            full = query.get("full", ["0"])[0] == "1"
-            st = session.state(full=full)
-            if full:
-                st["camera_ok"] = bool(scanner and scanner.camera_ok)
+            st = session.state(full=True)
+            st["camera_ok"] = bool(scanner and scanner.camera_ok)
             return self.send_json(st)
         if path == "/api/quizzes":
             active = session.quiz_name
@@ -472,11 +762,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_error(404, "Brak quizu")
         if path == "/api/roster":
             return self.send_json(load_roster())
-        if path == "/api/settings":
-            return self.send_json(settings)
-        if path.startswith("/media/"):
-            fn = os.path.basename(path[len("/media/"):])
-            return self.send_file(os.path.join(MEDIA_DIR, fn))
         if path == "/api/quiz/export":
             name = query.get("name", [""])[0]
             try:
@@ -496,6 +781,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/meta":
             return self.send_json({
                 "lan_ip": lan_ip(),
+                "lan_ips": lan_ips(),
                 "port": self.server.server_address[1],
                 "camera_ok": bool(scanner and scanner.camera_ok),
                 "version": VERSION,
@@ -509,6 +795,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path
+        if not self.authorized():
+            return self.locked()
+        # Tylko JSON: obca strona otwarta w przeglądarce nauczyciela nie wyśle
+        # takiego zapytania bez zgody serwera (CORS), więc nie przestawi quizu.
+        if not self.headers.get("Content-Type", "").startswith("application/json"):
+            return self.send_json({"ok": False, "error": "json"}, code=415)
         data = self.read_json_body()
 
         if path == "/api/control":
@@ -531,6 +823,12 @@ class Handler(BaseHTTPRequestHandler):
                 session.set_auto_mode(data.get("value", False))
                 if data.get("value") and session.phase == PHASE_IDLE:
                     session.start_question()   # tryb auto rusza od razu
+            elif action == "draw":
+                drawn = session.draw_student()
+                return self.send_json({"ok": bool(drawn), "draw": drawn})
+            elif action == "dismiss_restore":
+                with session.lock:
+                    session.restored_at = None
             return self.send_json({"ok": True, "state": session.state(full=True)})
 
         if path == "/api/quiz":
@@ -550,12 +848,75 @@ class Handler(BaseHTTPRequestHandler):
             except FileNotFoundError:
                 return self.send_error(404, "Brak quizu")
             session.load_quiz(quiz, safe_name(name))
+            settings["last_quiz"] = safe_name(name)
+            save_settings()
             return self.send_json({"ok": True, "state": session.state(full=True)})
 
         if path == "/api/roster":
             roster = {int(k): v for k, v in data.items()}
             save_roster(roster)
             session.set_roster(roster)
+            return self.send_json({"ok": True})
+
+        if path == "/api/class/select":
+            try:
+                c = activate_class(data.get("id", ""))
+            except (OSError, ValueError):
+                return self.send_json({"ok": False}, code=404)
+            if data.get("reset"):
+                session.reset_scores()
+            return self.send_json({"ok": True, "id": c["id"], "name": c["name"]})
+
+        if path == "/api/class/save":
+            # Nowa klasa albo zmiana nazwy/listy istniejącej.
+            name = str(data.get("name", "")).strip()[:60]
+            if not name:
+                return self.send_json({"ok": False, "error": "name"}, code=400)
+            old = data.get("id") or ""
+            new_id = safe_name(name)
+            students = data.get("students")
+            if students is None:
+                students = read_class(old)["students"] if old else {}
+            students = {int(k): str(v) for k, v in students.items()}
+            if new_id != old and os.path.exists(class_path(new_id)):
+                return self.send_json({"ok": False, "error": "exists"}, code=409)
+            write_class(new_id, name, students)
+            if old and old != new_id and os.path.exists(class_path(old)):
+                os.remove(class_path(old))
+            # Zmiana aktywnej klasy od razu trafia do sesji; nowa klasa nie
+            # przełącza trwającej gry, chyba że edytor wprost o to prosi.
+            if (old and settings.get("class") == old) or data.get("activate"):
+                activate_class(new_id)
+            return self.send_json({"ok": True, "id": new_id})
+
+        if path == "/api/class/delete":
+            classes = list_classes()
+            cid = safe_name(data.get("id", ""))
+            if len(classes) < 2 or cid not in [c["id"] for c in classes]:
+                return self.send_json({"ok": False}, code=400)
+            os.remove(class_path(cid))
+            if settings.get("class") == cid:
+                activate_class(list_classes()[0]["id"])
+            return self.send_json({"ok": True})
+
+        if path == "/api/roster/import":
+            try:
+                blob = decode_upload(data.get("data", ""))
+                students, warnings = roster_import.import_file(data.get("name", ""), blob)
+            except ValueError as e:
+                return self.send_json({"ok": False, "error": str(e)}, code=400)
+            return self.send_json({"ok": True, "students": students, "warnings": warnings})
+
+        if path == "/api/quiz/parse":
+            try:
+                blob = decode_upload(data.get("data", ""))
+                quiz, warnings = quiz_import.import_file(data.get("name", ""), blob)
+            except ValueError as e:
+                return self.send_json({"ok": False, "error": str(e)}, code=400)
+            return self.send_json({"ok": True, "quiz": quiz, "warnings": warnings})
+
+        if path == "/api/pair/reset":
+            load_pair_key(regenerate=True)
             return self.send_json({"ok": True})
 
         if path == "/api/export":
@@ -631,20 +992,26 @@ def build_server(camera=None, port=8000, host="0.0.0.0", no_camera=False):
 
     seed_data()
     load_settings()
+    load_pair_key()
     if camera is not None:          # jawny wybór z linii poleceń ma pierwszeństwo
         settings["camera"] = str(camera)
-    session.set_roster(load_roster())
+    c = active_class()
+    session.set_roster(c["students"], c["name"])
     session.set_only_known(bool(settings.get("only_known", True)))
     session.on_podium = autosave_report
+    session.on_change = autosave_session
     session.start_auto_engine()
     updater.check_async(bool(settings.get("check_updates", True)))
 
-    quizzes = list_quizzes()
-    if quizzes:
-        try:
-            session.load_quiz(read_quiz(quizzes[0]), quizzes[0])
-        except Exception:
-            pass
+    if not try_restore_session():
+        quizzes = list_quizzes()
+        first = settings.get("last_quiz") if settings.get("last_quiz") in quizzes else None
+        first = first or (quizzes[0] if quizzes else None)
+        if first:
+            try:
+                session.load_quiz(read_quiz(first), first)
+            except Exception:
+                pass
 
     if not no_camera:
         scanner = CameraScanner(session, camera=settings.get("camera", "0"),
@@ -705,6 +1072,7 @@ def main():
         print(f"  Tablica (rzutnik) : http://localhost:{args.port}/board")
         print(f"  Edytor pytań      : http://localhost:{args.port}/editor")
         print(f"  Tablica w sieci   : http://{ip}:{args.port}/board")
+        print("  Pilot w telefonie : zeskanuj kod QR z panelu nauczyciela")
         print("=" * 58)
         print("  Zatrzymanie: Ctrl+C")
 

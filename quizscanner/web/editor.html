@@ -36,6 +36,11 @@
       <button class="btn-ghost" id="importBtn" style="width:100%" data-i18n="e_import_file"></button>
       <input type="file" id="importFile" accept=".quiz,.json,application/json" hidden>
       <p class="muted" data-i18n="e_file_hint"></p>
+      <hr>
+      <button class="btn-ghost" id="wordBtn" style="width:100%" data-i18n="wi_button"></button>
+      <input type="file" id="wordFile" accept=".docx,.txt,text/plain" hidden>
+      <p class="muted"><span data-i18n="wi_hint"></span>
+        <a href="/api/quiz/template.docx" class="ed-link" data-i18n="wi_template"></a></p>
     </div>
 
     <div class="main">
@@ -81,6 +86,8 @@
         <div id="mathBox"></div>
       </div>
 
+      <div class="panel import-warn hidden" id="importWarn"></div>
+
       <div id="questions"></div>
       <button class="add-q" id="addQ" data-i18n="e_add_question"></button>
     </div>
@@ -89,15 +96,27 @@
   <!-- ZAKŁADKA: UCZNIOWIE -->
   <div class="ed-body hidden" id="rosterView">
     <div class="side">
-      <h3 data-i18n="e_tab_roster"></h3>
+      <h3 data-i18n="cl_classes"></h3>
+      <ul class="qlist" id="classList"></ul>
+      <button class="btn-primary" id="newClass" style="width:100%" data-i18n="cl_new"></button>
+      <hr>
+      <label class="field" data-i18n="cl_name"></label>
+      <input class="text" id="className">
       <p class="muted" data-i18n="e_roster_hint"></p>
       <button class="btn-ok" id="saveRoster" style="width:100%" data-i18n="e_save_roster"></button>
       <button class="btn-ghost" id="addStudent" style="width:100%; margin-top:8px" data-i18n="e_add_student"></button>
+      <button class="btn-danger" id="delClass" style="width:100%; margin-top:8px" data-i18n="cl_delete"></button>
+      <hr>
+      <button class="btn-ghost" id="rosterImportBtn" style="width:100%" data-i18n="ri_button"></button>
+      <input type="file" id="rosterFile" accept=".csv,.txt,.xlsx,text/csv,text/plain" hidden>
+      <p class="muted" data-i18n="ri_hint"></p>
+      <button class="btn-ghost" id="rosterExport" style="width:100%" data-i18n="ri_export"></button>
       <hr>
       <button class="btn-primary" id="cardsBtn" style="width:100%" data-i18n="e_cards_pdf"></button>
       <p class="muted" data-i18n="e_cards_hint"></p>
     </div>
     <div class="main">
+      <div class="panel import-warn hidden" id="rosterWarn"></div>
       <div class="panel">
         <table class="roster-table">
           <thead><tr>

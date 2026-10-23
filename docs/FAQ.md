@@ -163,6 +163,30 @@ klasy są ignorowane.
 </details>
 
 <details>
+<summary><b>Czy mogę sterować quizem z telefonu?</b></summary>
+
+Tak. W panelu kliknij **📱 Pilot w telefonie** i zeskanuj kod QR telefonem
+w tej samej sieci Wi-Fi. Pilot pokazuje przyciski Start / Pokaż wynik /
+Następne, czas i listę uczniów, którzy jeszcze nie podnieśli karty. Niczego nie
+trzeba instalować — to strona w przeglądarce telefonu.
+</details>
+
+<details>
+<summary><b>Przez pomyłkę cofnąłem się do pytania i pokazałem wynik jeszcze raz.</b></summary>
+
+Od wersji 3.2 nic się nie stało: nowy wynik zastępuje poprzedni wynik tego
+pytania, punkty nie liczą się podwójnie.
+</details>
+
+<details>
+<summary><b>Program się zamknął w środku lekcji.</b></summary>
+
+Uruchom go ponownie — gra wróci do tego samego pytania z tymi samymi punktami
+(pasek „Wznowiono przerwaną grę" w panelu). Jeśli wolisz zacząć od zera,
+kliknij tam **Zacznij od nowa**.
+</details>
+
+<details>
 <summary><b>Jak pokazać tablicę na rzutniku z drugiego komputera?</b></summary>
 
 Otwórz na nim adres **„Tablica w sieci"** wyświetlany w panelu nauczyciela
@@ -393,6 +417,22 @@ wyeksportowany plik.
 
 Nie. Lista uczniów może zawierać same numery albo inicjały — raport pokaże
 to, co wpiszesz.
+</details>
+
+<details>
+<summary><b>Czy uczeń z telefonem w szkolnym Wi-Fi może przełączać pytania?</b></summary>
+
+Nie (od wersji 3.2). Urządzenia w sieci widzą tylko tablicę. Sterowanie,
+edytor, raporty, lista uczniów i obraz z kamery działają na komputerze
+nauczyciela oraz na urządzeniach sparowanych kodem QR. Gdy podejrzewasz, że
+kod widział ktoś niepowołany, kliknij **Odłącz wszystkie urządzenia**.
+</details>
+
+<details>
+<summary><b>Czy losowanie z czytaniem imion wysyła dane do internetu?</b></summary>
+
+Nie. Tablica używa wyłącznie głosu zainstalowanego w systemie (np. „Paulina"
+w Windows). Jeśli takiego głosu nie ma, imię po prostu nie jest czytane.
 </details>
 
 <details>

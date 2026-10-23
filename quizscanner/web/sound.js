@@ -24,6 +24,8 @@ const Sound = (() => {
     next:    [[660, 0, .07, .5, "sine"]],
     podium:  [[523, 0, .14, 1, "triangle"], [659, .13, .14, 1, "triangle"],
               [784, .26, .14, 1, "triangle"], [1046, .39, .5, 1, "triangle"]],
+    roll:    [[1320, 0, .03, .35, "square"]],
+    drawn:   [[659, 0, .1, .9, "triangle"], [988, .09, .4, .9, "triangle"]],
   };
 
   function audio() {

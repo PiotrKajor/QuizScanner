@@ -32,7 +32,10 @@ ICON_ICO = os.path.join(_ASSET_ROOT, "assets", "logo.ico")
 QUIZ_DIR = os.path.join(DATA_DIR, "quizzes")
 MEDIA_DIR = os.path.join(DATA_DIR, "media")
 REPORT_DIR = os.path.join(DATA_DIR, "raporty")
-ROSTER_JSON = os.path.join(DATA_DIR, "roster.json")
+ROSTER_JSON = os.path.join(DATA_DIR, "roster.json")      # sprzed 3.2: jedna lista
+CLASS_DIR = os.path.join(DATA_DIR, "klasy")               # od 3.2: lista na klasę
+SESSION_JSON = os.path.join(DATA_DIR, "sesja.json")       # migawka trwającej gry
+PAIR_KEY = os.path.join(DATA_DIR, "pair_key.txt")         # klucz sparowanych urządzeń
 STUDENTS_CSV = os.path.join(DATA_DIR, "students.csv")
 SETTINGS_JSON = os.path.join(DATA_DIR, "settings.json")
 

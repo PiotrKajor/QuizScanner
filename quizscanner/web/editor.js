@@ -62,7 +62,24 @@ async function loadQuizList() {
 async function selectQuiz(name) {
   quiz = normalize(await api("/api/quiz?name=" + encodeURIComponent(name)));
   currentName = name;
+  showWarnings("importWarn", null);
   renderAll();
+}
+
+// Plik z dysku jako data:URL (tak serwer przyjmuje przesyłane pliki).
+function readAsDataUrl(f) {
+  return new Promise(res => {
+    const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(f);
+  });
+}
+
+// Panel z podsumowaniem importu i ostrzeżeniami do poprawienia.
+function showWarnings(id, head, list) {
+  const el = $(id);
+  if (!head) { el.classList.add("hidden"); return; }
+  el.innerHTML = `<b>${esc(head)}</b>` + ((list && list.length)
+    ? `<ul>${list.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : "");
+  el.classList.remove("hidden");
 }
 
 // ---------- render ----------
@@ -209,7 +226,22 @@ $("applyAll").onclick = () => {
 };
 $("newQuiz").onclick = () => {
   quiz = { title: "", settings: Object.assign({}, DEFAULT_SETTINGS), questions: [] };
-  currentName = null; renderAll();
+  currentName = null; showWarnings("importWarn", null); renderAll();
+};
+
+// Import z Worda (.docx) lub pliku tekstowego: wynik trafia do edytora jako
+// nowy, niezapisany quiz — nauczyciel go przegląda i dopiero wtedy zapisuje.
+$("wordBtn").onclick = () => $("wordFile").click();
+$("wordFile").onchange = async () => {
+  const f = $("wordFile").files[0];
+  $("wordFile").value = "";
+  if (!f) return;
+  const r = await api("/api/quiz/parse", { name: f.name, data: await readAsDataUrl(f) });
+  if (!r.ok) { toast(t("wi_failed") + " " + (r.error || "")); return; }
+  quiz = normalize(r.quiz);
+  currentName = null;
+  renderAll();
+  showWarnings("importWarn", t("wi_done", { n: quiz.questions.length }), r.warnings);
 };
 $("saveQuiz").onclick = async () => {
   syncFromDom();
@@ -265,9 +297,31 @@ function switchTab(tab) {
   if (tab === "roster") loadRoster();
 }
 
-// ---------- uczniowie ----------
+// ---------- klasy i uczniowie ----------
 let roster = {};
-async function loadRoster() { roster = await api("/api/roster"); renderRoster(); }
+let currentClass = null;      // id edytowanej klasy (null = nowa, niezapisana)
+let activeClass = null;       // klasa, z którą toczy się gra
+
+async function loadRoster(id) {
+  const r = await api("/api/classes");
+  activeClass = r.active;
+  if (id === undefined) id = currentClass || r.active;
+  const ul = $("classList"); ul.innerHTML = "";
+  (r.classes || []).forEach(c => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span>${c.id === r.active ? "● " : ""}${esc(c.name)}</span><span class="cnt">${c.count}</span>`;
+    if (c.id === id) li.classList.add("active");
+    li.title = c.id === r.active ? t("cl_active") : "";
+    li.onclick = () => loadRoster(c.id);
+    ul.appendChild(li);
+  });
+  if (id) {
+    const c = await api("/api/class?id=" + encodeURIComponent(id));
+    currentClass = c.id; roster = c.students; $("className").value = c.name;
+  }
+  showWarnings("rosterWarn", null);
+  renderRoster();
+}
 function renderRoster() {
   const body = $("rosterBody"); body.innerHTML = "";
   Object.keys(roster).map(Number).sort((a, b) => a - b).forEach(id => {
@@ -293,15 +347,56 @@ $("addStudent").onclick = () => {
   const next = Object.keys(roster).length ? Math.max(...Object.keys(roster).map(Number)) + 1 : 0;
   roster[next] = ""; renderRoster();
 };
+async function saveClass() {
+  syncRoster();
+  const name = $("className").value.trim();
+  if (!name) { toast(t("cl_name_needed")); $("className").focus(); return null; }
+  const r = await api("/api/class/save", { id: currentClass, name, students: roster });
+  if (!r.ok) { toast(r.error === "exists" ? t("cl_exists") : t("cl_name_needed")); return null; }
+  currentClass = r.id;
+  await loadRoster(r.id);
+  return r.id;
+}
 $("saveRoster").onclick = async () => {
-  syncRoster(); await api("/api/roster", roster); toast(t("e_roster_saved"));
+  if (await saveClass()) toast(t("e_roster_saved"));
+};
+$("newClass").onclick = () => {
+  currentClass = null; roster = {};
+  $("className").value = "";
+  document.querySelectorAll("#classList li").forEach(li => li.classList.remove("active"));
+  renderRoster();
+  $("className").focus();
+};
+$("delClass").onclick = async () => {
+  if (!currentClass) { loadRoster(activeClass); return; }
+  if (!confirm(t("cl_confirm_delete", { name: $("className").value }))) return;
+  const r = await api("/api/class/delete", { id: currentClass });
+  if (!r.ok) { toast(t("cl_last")); return; }
+  currentClass = null; loadRoster(); toast(t("e_deleted"));
+};
+$("rosterImportBtn").onclick = () => $("rosterFile").click();
+$("rosterFile").onchange = async () => {
+  const f = $("rosterFile").files[0];
+  $("rosterFile").value = "";
+  if (!f) return;
+  const r = await api("/api/roster/import", { name: f.name, data: await readAsDataUrl(f) });
+  if (!r.ok) { toast(t("ri_failed") + " " + (r.error || "")); return; }
+  roster = r.students;
+  if (!$("className").value.trim()) $("className").value = f.name.replace(/\.[^.]+$/, "");
+  renderRoster();
+  showWarnings("rosterWarn", t("ri_done", { n: Object.keys(roster).length }), r.warnings);
+};
+$("rosterExport").onclick = () => {
+  if (!currentClass) { toast(t("cl_save_first")); return; }
+  window.open("/api/roster.csv?id=" + encodeURIComponent(currentClass), "_blank");
 };
 $("cardsBtn").onclick = async () => {
   syncRoster();
   if (!Object.keys(roster).length) { toast(t("e_add_students_first")); return; }
-  await api("/api/roster", roster);
+  const id = await saveClass();
+  if (!id) return;
   toast(t("e_generating_pdf"));
-  window.open("/api/cards.pdf", "_blank");
+  window.open("/api/cards.pdf?class=" + encodeURIComponent(id), "_blank");
 };
 
 // ---------- język i motyw ----------

@@ -6,6 +6,9 @@ __pycache__/
 # Dane tworzone w trakcie działania (folder danych aplikacji).
 # Wersjonujemy tylko dane startowe: data/quizzes/przyklad.json i data/students.csv
 data/roster.json
+data/klasy/
+data/sesja.json
+data/pair_key.txt
 data/settings.json
 data/media/
 data/raporty/

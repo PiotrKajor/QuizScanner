@@ -2,6 +2,78 @@
 
 Format: [wersja] — co nowego z punktu widzenia nauczyciela.
 
+## [3.2.0] — 2026-10-24
+
+> **Inspiracja:** to wydanie powstało dzięki forkowi
+> [suoyikehahaha/QuizScanner](https://github.com/suoyikehahaha/QuizScanner)
+> (chińska edycja „辨惑策” autorstwa 公众号 „蓑衣微言”). Autor dorobił tam
+> m.in. natywnego pilota na Androida, klasy, import testów z Worda i losowanie
+> ucznia. Najciekawsze pomysły przenieśliśmy tutaj — po swojemu: w przeglądarce
+> zamiast osobnej aplikacji, bez chmury i bez wysyłania imion uczniów do
+> zewnętrznych usług. Dziękujemy!
+
+### Nowe
+
+- **📱 Pilot w telefonie** — w panelu kliknij „Pilot w telefonie” i zeskanuj
+  kod QR. Telefon staje się pilotem: duży przycisk Start → Pokaż wynik →
+  Następne, czas, liczba odpowiedzi, poprawna odpowiedź tylko dla Ciebie
+  i lista uczniów, którzy **jeszcze nie podnieśli karty** — chodzisz po klasie
+  i wiesz, do kogo podejść. Nie trzeba niczego instalować.
+- **🔒 Sterowanie tylko dla nauczyciela** — dotąd każdy w tej samej sieci Wi-Fi
+  mógł przełączać pytania, a nawet podejrzeć poprawną odpowiedź pod
+  `/api/state?full=1`. Teraz urządzenia w sieci widzą tylko tablicę; panel,
+  edytor, raporty i obraz z kamery działają na komputerze nauczyciela i na
+  urządzeniach sparowanych kodem QR. Przycisk „Odłącz wszystkie urządzenia”
+  unieważnia stare parowania.
+- **📺 Sterowanie z tablicy** — po poruszeniu myszą na tablicy pojawia się
+  pasek: lista pytań do przeskoczenia, ◀ ▶, Start/Pokaż wynik, losowanie
+  i pełny ekran (klawisz F). Na niesparowanym komputerze przy rzutniku pasek
+  ma tylko powiększanie tekstu.
+- **🔍 Powiększanie tekstu na tablicy** — 80–175% (przyciski A−/A+ albo
+  klawisze +/−), zapamiętywane osobno na każdym komputerze. Przy dużym
+  powiększeniu tablica przewija się zamiast ucinać odpowiedzi.
+- **🎲 Losuj ucznia** — z panelu, pilota albo tablicy. Na tablicy krótka
+  animacja przewijania imion; losowanie bez powtórzeń, dopóki nie wylosuje się
+  cała klasa. Opcjonalnie tablica **czyta imię na głos** — wyłącznie głosem
+  zainstalowanym w systemie, offline.
+- **👥 Klasy** — osobna lista uczniów dla każdej klasy, przełącznik w panelu
+  i w pilocie. Dotychczasowa lista staje się klasą „Moja klasa”. Nazwa klasy
+  trafia do raportu i do nazwy pliku raportu.
+- **📥 Import listy uczniów z CSV/Excela** — eksport z dziennika lub zwykły
+  arkusz („Nazwisko;Imię”, „1;Anna Nowak” albo samo nazwisko w linii);
+  numery kart nadają się same, gdy ich nie ma. Listę można też zapisać do CSV.
+- **📄 Import pytań z Worda (.docx) i pliku tekstowego** — numerowane pytania,
+  odpowiedzi A–D, poprawna przez „Odpowiedź: B”, gwiazdkę albo pogrubienie;
+  działa też automatyczna numeracja Worda. W edytorze jest gotowy szablon
+  .docx do pobrania. Wynik trafia do edytora do przejrzenia, z listą
+  ostrzeżeń (np. „Pytanie 4: nie wskazano poprawnej odpowiedzi”).
+- **💾 Wznowienie przerwanej gry** — po każdym wyniku gra zapisuje się na
+  dysku. Gdy program zostanie zamknięty w trakcie lekcji (albo komputer się
+  zawiesi), po ponownym uruchomieniu wracasz do tego samego pytania z tymi
+  samymi punktami. Program pamięta też ostatnio wczytany quiz.
+
+### Poprawki
+
+- **Powrót do pytania nie dolicza punktów drugi raz.** Wcześniej „Poprzednie”
+  → „Start” → „Pokaż wynik” dodawało punkty za to samo pytanie ponownie
+  (raport już to pomijał, ranking na tablicy — nie). Teraz nowy wynik
+  zastępuje poprzedni.
+- **Raport pokazuje uczniów bez żadnej odpowiedzi** (0 pkt) — widać, kogo
+  brakowało; średnie liczone są tylko z obecnych.
+- Adres tablicy i kod QR działają też w szkolnej sieci bez internetu (dawniej
+  panel pokazywał wtedy `127.0.0.1`); przy kilku kartach sieciowych można
+  wybrać właściwą.
+- Fazy pytania w panelu są opisane po polsku/angielsku zamiast `idle`/`reveal`.
+
+### Pod spodem
+
+- Nowe moduły `quiz_import.py` i `roster_import.py` czytają .docx/.xlsx przez
+  `zipfile` z biblioteki standardowej — **żadnej nowej zależności**.
+- Kod QR rysuje koder z OpenCV, który i tak jest wymagany.
+- `tools/selftest.py` sprawdza dodatkowo importy, klasy, ochronę przed
+  urządzeniami w sieci, parowanie, losowanie, wznowienie gry i poprawkę
+  punktacji. Działa na tymczasowej klasie i nie rusza Twojej listy uczniów.
+
 ## [3.1.0] — 2026-08-02
 
 ### Nowe

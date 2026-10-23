@@ -54,6 +54,14 @@ class QuizSession:
         self.order = []           # kolejność pytań (może być losowa)
         self.perm = [0, 1, 2, 3]  # kolejność odpowiedzi w bieżącym pytaniu
         self.on_podium = None     # wywoływane raz, gdy quiz dobiegnie końca
+        self.on_change = None     # wywoływane po każdym naliczeniu punktów (autozapis)
+        self.class_name = ""      # nazwa aktywnej klasy (do raportu)
+        self.restored_at = None   # czas migawki, z której wznowiono grę
+
+        # Losowanie ucznia: kto już był wylosowany (bez powtórzeń do wyczerpania
+        # listy) i ostatni wynik, który tablica pokazuje przez chwilę.
+        self.drawn = set()
+        self.draw = None
 
         # Tryb automatyczny: quiz sam odsłania wynik i przechodzi dalej.
         self.auto_mode = False
@@ -76,6 +84,7 @@ class QuizSession:
             self.phase = PHASE_IDLE
             self.scores = {}
             self.history = []
+            self.restored_at = None
             self._build_order()
             self._reset_question_state()
 
@@ -86,9 +95,12 @@ class QuizSession:
         if self.settings().get("shuffle_questions"):
             random.shuffle(self.order)
 
-    def set_roster(self, roster):
+    def set_roster(self, roster, class_name=None):
         with self.lock:
             self.roster = {int(k): v for k, v in roster.items()}
+            self.drawn &= set(self.roster)
+            if class_name is not None:
+                self.class_name = class_name
 
     def set_speed_bonus(self, value):
         with self.lock:
@@ -191,6 +203,14 @@ class QuizSession:
                 self._award(q)
                 self.awarded = True
             self.phase = PHASE_REVEAL
+        self._changed()
+
+    def _changed(self):
+        if self.on_change:
+            try:
+                self.on_change(self)
+            except Exception:
+                pass
 
     def _award(self, q):
         # Uczniowie odpowiadają litera z TABLICY, więc liczy się pozycja
@@ -221,9 +241,20 @@ class QuizSession:
                 else:
                     # Punkty stałe: każda poprawna odpowiedź warta tyle samo.
                     pts = base
-            self.scores[mid] = self.scores.get(mid, 0) + pts
             result["answers"][mid] = {"answer": ans, "correct": is_correct, "points": pts}
+        # Powrót do pytania i ponowne „Pokaż wynik" zastępuje poprzedni wynik
+        # tego pytania, zamiast doliczać punkty drugi raz.
+        self.history = [h for h in self.history if h.get("index") != self.index]
         self.history.append(result)
+        self._recount_scores()
+
+    def _recount_scores(self):
+        """Suma punktów liczona od nowa z historii (po jednym wpisie na pytanie)."""
+        scores = {}
+        for h in self.history:
+            for mid, a in h.get("answers", {}).items():
+                scores[mid] = scores.get(mid, 0) + int(a.get("points", 0))
+        self.scores = scores
 
     def next_question(self):
         with self.lock:
@@ -231,9 +262,13 @@ class QuizSession:
                 self.index += 1
                 self.phase = PHASE_IDLE
                 self._reset_question_state()
-                return
-            finished = self.phase != PHASE_PODIUM
-            self.phase = PHASE_PODIUM
+                finished = None
+            else:
+                finished = self.phase != PHASE_PODIUM
+                self.phase = PHASE_PODIUM
+        self._changed()
+        if finished is None:
+            return
         # ponytail: raport zapisujemy tu, w wątku wywołującym -- to ułamek
         # sekundy; osobny wątek dopiero gdyby doszły ciężkie formaty.
         if finished and self.on_podium:
@@ -248,6 +283,7 @@ class QuizSession:
                 self.index -= 1
                 self.phase = PHASE_IDLE
                 self._reset_question_state()
+        self._changed()
 
     def goto(self, idx):
         with self.lock:
@@ -255,6 +291,7 @@ class QuizSession:
                 self.index = idx
                 self.phase = PHASE_IDLE
                 self._reset_question_state()
+        self._changed()
 
     def reset_scores(self):
         with self.lock:
@@ -262,7 +299,60 @@ class QuizSession:
             self.history = []
             self.index = 0
             self.phase = PHASE_IDLE
+            self.restored_at = None
             self._reset_question_state()
+        self._changed()
+
+    # ---------- losowanie ucznia ----------
+    def draw_student(self):
+        """Losuje ucznia z listy klasy, bez powtórzeń aż do wyczerpania listy.
+        Zwraca {"id", "name"} albo None, gdy lista jest pusta."""
+        with self.lock:
+            if not self.roster:
+                return None
+            pool = [mid for mid in self.roster if mid not in self.drawn]
+            if not pool:
+                self.drawn = set()
+                pool = list(self.roster)
+            mid = random.choice(pool)
+            self.drawn.add(mid)
+            seq = (self.draw or {}).get("seq", 0) + 1
+            self.draw = {"seq": seq, "id": mid, "name": self.roster[mid],
+                         "at": time.time(), "left": len(pool) - 1}
+            return dict(self.draw)
+
+    # ---------- migawka (wznowienie po awarii) ----------
+    def snapshot(self):
+        """Stan gry do zapisania na dysk — tyle, ile trzeba, żeby po
+        zamknięciu programu wrócić do tego samego pytania z tymi samymi punktami."""
+        with self.lock:
+            return {
+                "quiz_name": self.quiz_name,
+                "class_name": self.class_name,
+                "index": self.index,
+                "order": list(self.order),
+                "finished": self.phase == PHASE_PODIUM,
+                "history": [dict(h, answers={str(k): v for k, v in h["answers"].items()})
+                            for h in self.history],
+                "saved_at": time.time(),
+            }
+
+    def restore(self, snap):
+        """Odtwarza grę z migawki (quiz musi być już wczytany)."""
+        with self.lock:
+            n = len(self.quiz.get("questions", []))
+            order = [int(i) for i in snap.get("order", [])]
+            if sorted(order) != list(range(n)):
+                return False                 # quiz zmienił się od migawki
+            self.order = order
+            self.history = [dict(h, answers={int(k): v for k, v in h["answers"].items()})
+                            for h in snap.get("history", [])]
+            self._recount_scores()
+            self.index = min(int(snap.get("index", 0)), max(n - 1, 0))
+            self.phase = PHASE_IDLE
+            self._reset_question_state()
+            self.restored_at = snap.get("saved_at")
+            return True
 
     # Skróty używane przez pętlę automatyczna (lock jest reentrantny).
     def _do_reveal(self):
@@ -364,7 +454,14 @@ class QuizSession:
                 "auto_next_in": (round(self.auto_next_in(), 1)
                                  if self.auto_next_in() is not None else None),
                 "show_distribution": bool(self.settings().get("show_distribution", True)),
+                "class_name": self.class_name,
+                "class_size": len(self.roster),
+                "draw": None,
             }
+            # Wylosowany uczeń widnieje na tablicy przez kilka sekund.
+            if self.draw and time.time() - self.draw["at"] < 12:
+                st["draw"] = {"seq": self.draw["seq"], "name": self.draw["name"],
+                              "pool": [self.roster[m] for m in sorted(self.roster)][:60]}
             if q:
                 qd = {
                     "text": q.get("text", ""),
@@ -384,4 +481,15 @@ class QuizSession:
                 st["scores"] = {str(k): v for k, v in self.scores.items()}
                 st["speed_bonus"] = self.speed_bonus
                 st["only_known"] = self.only_known
+                # Kto jeszcze nie odpowiedział — nauczyciel widzi to w pilocie.
+                st["missing"] = ([{"id": m, "name": self.roster[m]} for m in sorted(self.roster)
+                                  if m not in self.answers]
+                                 if self.phase == PHASE_QUESTION else [])
+                st["restored_at"] = self.restored_at
+                # Spis pytań w kolejności gry (lista wyboru na tablicy i w pilocie).
+                qs = self.quiz.get("questions", [])
+                st["outline"] = [str(qs[i].get("text", ""))[:90] for i in self.order
+                                 if 0 <= i < len(qs)]
+                if self.draw:
+                    st["last_draw"] = {"name": self.draw["name"], "left": self.draw["left"]}
             return st

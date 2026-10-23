@@ -47,6 +47,8 @@ python -m PyInstaller --onefile --noconsole --name $Name `
   --hidden-import quizscanner.i18n `
   --hidden-import quizscanner.overlay `
   --hidden-import quizscanner.report `
+  --hidden-import quizscanner.quiz_import `
+  --hidden-import quizscanner.roster_import `
   --hidden-import quizscanner.updater `
   --noconfirm launcher.py
 

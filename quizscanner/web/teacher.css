@@ -183,3 +183,18 @@ table.students th { color: var(--muted); font-size: 11px; text-transform: upperc
 .qtext-t .katex, .opt-t .katex { font-size: 1em; }
 .katex-display { margin: .2em 0; }
 .tex-error { color: var(--bad); font-family: monospace; font-size: .9em; }
+
+/* losowanie ucznia */
+.draw-out { margin-top: 8px; min-height: 1.2em; }
+.draw-out b { color: var(--accent); font-size: 17px; }
+.missing { margin-top: 10px; line-height: 1.5; }
+
+/* parowanie telefonu */
+.pair-box { text-align: center; max-width: 460px; }
+.pair-qr { width: 260px; height: 260px; image-rendering: pixelated;
+  border-radius: 10px; background: #fff; display: block; margin: 8px auto 12px; }
+.pair-ip { margin-bottom: 10px; }
+.pair-ip select { font: inherit; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--field); color: var(--text); }
+.pair-url { display: block; word-break: break-all; font-size: 12px; margin-bottom: 12px; }
+.pair-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }

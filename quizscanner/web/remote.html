@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14161f">
+  <title>QuizScanner — Pilot</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="/static/themes.css">
+  <link rel="stylesheet" href="/static/common.css">
+  <link rel="stylesheet" href="/static/remote.css">
+</head>
+<body class="remote">
+  <header class="rm-top">
+    <img class="brand-logo" src="/static/logo.svg" alt="">
+    <div class="rm-title">
+      <b id="quizTitle">QuizScanner</b>
+      <span id="className"></span>
+    </div>
+    <span class="phase idle" id="phase"></span>
+  </header>
+
+  <!-- Urządzenie niesparowane -->
+  <main class="rm-main hidden" id="lockedView">
+    <section class="rm-card">
+      <h2 data-i18n="rm_locked_title"></h2>
+      <p class="bad hidden" id="badKey" data-i18n="rm_bad_key"></p>
+      <ol class="rm-steps">
+        <li data-i18n="rm_locked_1"></li>
+        <li data-i18n="rm_locked_2"></li>
+        <li data-i18n="rm_locked_3"></li>
+      </ol>
+      <a class="rm-link" href="/board" data-i18n="rm_open_board"></a>
+    </section>
+  </main>
+
+  <!-- Pilot -->
+  <main class="rm-main hidden" id="remoteView">
+    <div class="rm-banner hidden" id="restoreBar"></div>
+
+    <section class="rm-card rm-status">
+      <div class="rm-counter" id="counter">—</div>
+      <div class="rm-big">
+        <div><span class="k" data-i18n="t_stat_time"></span><b id="timeLeft">—</b></div>
+        <div><span class="k" data-i18n="t_stat_answered"></span><b id="answered">0</b></div>
+      </div>
+      <div class="rm-q" id="qtext"></div>
+      <div class="rm-opts" id="opts"></div>
+    </section>
+
+    <section class="rm-actions">
+      <button class="btn-ok rm-main-btn" id="mainBtn"></button>
+      <div class="rm-row">
+        <button class="btn-ghost" id="prevBtn" data-i18n="t_prev"></button>
+        <button class="btn-ghost" id="nextBtn" data-i18n="t_next"></button>
+      </div>
+      <div class="rm-auto hidden" id="autoBar"></div>
+    </section>
+
+    <section class="rm-card hidden" id="missingCard">
+      <h3 id="missingTitle"></h3>
+      <div class="rm-chips" id="missing"></div>
+    </section>
+
+    <section class="rm-card">
+      <button class="btn-primary rm-wide" id="drawBtn" data-i18n="dr_button"></button>
+      <div class="rm-draw" id="drawOut"></div>
+    </section>
+
+    <section class="rm-card">
+      <h3 data-i18n="rm_more"></h3>
+      <label class="field" data-i18n="cl_label"></label>
+      <select class="rm-select" id="classSel"></select>
+      <label class="field mt" data-i18n="rm_quiz"></label>
+      <div class="rm-inline">
+        <select class="rm-select" id="quizSel"></select>
+        <button class="btn-primary" id="loadBtn" data-i18n="t_load"></button>
+      </div>
+      <div class="rm-row mt">
+        <button class="btn-danger" id="resetBtn" data-i18n="t_reset"></button>
+        <a class="btn-ghost rm-btnlink" href="/teacher" data-i18n="rm_full_panel"></a>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/vendor/katex/katex.min.js"></script>
+  <script src="/static/tex.js"></script>
+  <script src="/static/i18n.js"></script>
+  <script src="/static/remote.js"></script>
+</body>
+</html>
