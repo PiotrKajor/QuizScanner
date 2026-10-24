@@ -44,6 +44,37 @@ wyniki na żywo, klasa widzi tablicę na rzutniku, a po lekcji masz gotowy rapor
    └──────────┘        └──────────────┘        └───────────────────────┘
 ```
 
+## 📸 Jak to wygląda
+
+<p align="center">
+  <img src="docs/zrzuty/tablica-wynik.png" width="860" alt="Tablica na rzutniku po odsłonięciu wyniku">
+  <br><sub><b>Tablica na rzutniku</b> — wynik pytania z rozkładem odpowiedzi klasy</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="66%"><img src="docs/zrzuty/panel.png" alt="Panel nauczyciela"></td>
+    <td rowspan="2" width="34%"><img src="docs/zrzuty/pilot.png" alt="Pilot w telefonie"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/zrzuty/tablica-pytanie.png" alt="Tablica w trakcie pytania"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Panel nauczyciela</b> (u góry) — odpowiedzi na żywo, sterowanie, losowanie ucznia;<br><b>tablica w trakcie pytania</b> (u dołu) — odliczanie czasu</sub></td>
+    <td align="center"><sub><b>Pilot w telefonie</b> — kto jeszcze nie podniósł karty</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/zrzuty/edytor.png" alt="Edytor quizów z przybornikiem matematycznym"></td>
+    <td width="50%"><img src="docs/zrzuty/tablica-podium.png" alt="Klasyfikacja na koniec gry"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Edytor</b> — przybornik matematyczny i LaTeX, import z Worda</sub></td>
+    <td align="center"><sub><b>Klasyfikacja</b> na koniec gry</sub></td>
+  </tr>
+</table>
+
+Zrzuty odtwarza `python tools/screenshots.py` (symulowana lekcja, bez kamery).
+
 ## ✨ Funkcje
 
 | | |
