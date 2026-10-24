@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 170" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#e4603f"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="860" height="170" rx="16" fill="#161a24"/>
+
+  <!-- Karty -->
+  <g transform="translate(30 30)">
+    <rect width="210" height="110" rx="12" fill="#1f2433" stroke="#e8a33d" stroke-width="2"/>
+    <g transform="translate(22 27)">
+      <rect width="56" height="56" fill="#fff"/>
+      <rect x="6" y="6" width="44" height="44" fill="#111"/>
+      <rect x="14" y="14" width="10" height="10" fill="#fff"/>
+      <rect x="30" y="14" width="10" height="20" fill="#fff"/>
+      <rect x="14" y="30" width="20" height="10" fill="#fff"/>
+    </g>
+    <text x="96" y="52" fill="#fff" font-size="20" font-weight="700">KARTY</text>
+    <text x="96" y="76" fill="#9aa3b5" font-size="14">markery ArUco</text>
+  </g>
+
+  <line x1="248" y1="85" x2="312" y2="85" stroke="#e4603f" stroke-width="3" marker-end="url(#g)"/>
+
+  <!-- Kamera -->
+  <g transform="translate(320 30)">
+    <rect width="210" height="110" rx="12" fill="#1f2433" stroke="#2fa3b5" stroke-width="2"/>
+    <g transform="translate(22 32)" fill="none" stroke="#2fa3b5" stroke-width="3">
+      <rect width="50" height="38" rx="6"/>
+      <circle cx="25" cy="19" r="10"/>
+      <path d="M50 12 L62 5 L62 33 L50 26"/>
+    </g>
+    <text x="96" y="52" fill="#fff" font-size="20" font-weight="700">KAMERA</text>
+    <text x="96" y="76" fill="#9aa3b5" font-size="14">jeden kadr</text>
+  </g>
+
+  <line x1="538" y1="85" x2="602" y2="85" stroke="#e4603f" stroke-width="3" marker-end="url(#g)"/>
+
+  <!-- Panel i tablica -->
+  <g transform="translate(610 30)">
+    <rect width="220" height="110" rx="12" fill="#1f2433" stroke="#4fa66a" stroke-width="2"/>
+    <g transform="translate(20 30)">
+      <rect width="60" height="40" rx="4" fill="none" stroke="#4fa66a" stroke-width="3"/>
+      <rect x="8" y="22" width="8" height="12" fill="#e8a33d"/>
+      <rect x="20" y="10" width="8" height="24" fill="#2fa3b5"/>
+      <rect x="32" y="26" width="8" height="8" fill="#8a7ff0"/>
+      <rect x="44" y="18" width="8" height="16" fill="#4fa66a"/>
+      <path d="M22 48 h16" stroke="#4fa66a" stroke-width="3"/>
+    </g>
+    <text x="96" y="52" fill="#fff" font-size="20" font-weight="700">TABLICA</text>
+    <text x="96" y="76" fill="#9aa3b5" font-size="14">wyniki · raport</text>
+  </g>
+</svg>
