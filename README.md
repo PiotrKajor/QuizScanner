@@ -37,12 +37,9 @@ Drukujesz jedną kartę na ucznia. Na pytanie uczeń obraca kartę wybraną lite
 do góry, a kamera w jednym kadrze odczytuje odpowiedzi całej klasy. Ty widzisz
 wyniki na żywo, klasa widzi tablicę na rzutniku, a po lekcji masz gotowy raport.
 
-```
-   ┌──────────┐        ┌──────────────┐        ┌───────────────────────┐
-   │  KARTY   │  ───▶  │    KAMERA    │  ───▶  │  PANEL · TABLICA      │
-   │ ArUco A4 │        │  jeden kadr  │        │  wyniki · raport      │
-   └──────────┘        └──────────────┘        └───────────────────────┘
-```
+<p align="center">
+  <img src="docs/schemat.svg" width="760" alt="Karty z markerami ArUco → kamera odczytuje całą klasę → panel i tablica z wynikami">
+</p>
 
 ## 📸 Jak to wygląda
 
